@@ -21,7 +21,7 @@ failing() {
   while read -r service source target; do
     [[ -z "$service" || "$service" == \#* ]] && continue
     [[ "$source" == - ]] && source=""
-    "$lab" exec -T "$service" ping -c 1 -W 2 ${source:+-I "$source"} "$target" >/dev/null 2>&1 \
+    "$lab" exec -T "$service" ping -c 1 -W 2 ${source:+-I "$source"} "$target" </dev/null >/dev/null 2>&1 \
       || echo "$service ($source) -> $target"
   done < "$root/dist/lab/checks.txt"
 }
