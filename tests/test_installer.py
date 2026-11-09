@@ -418,6 +418,32 @@ def test_compose_follows_the_recorded_local_build(sandbox: Sandbox) -> None:
     assert _compose_call(sandbox)[0] == "tag=local"
 
 
+def test_compose_follows_the_recorded_local_checkout(sandbox: Sandbox, tmp_path: Path) -> None:
+    assert sandbox.run("--no-up").returncode == 0
+    _local_build_platform(sandbox)
+    other = tmp_path / "work2" / "hegemony"
+    (other / "deploy/compose").mkdir(parents=True)
+    (other / "deploy/compose/docker-compose.prod.yml").write_text("services: {}\n")
+    (other / "deploy/compose/docker-compose.prod-local.yml").write_text("services: {}\n")
+    for plugins in ("inventory", "notification", "secret", "step"):
+        (other.parent / f"hegemony-{plugins}-plugins").mkdir()
+    local = sandbox.checkout / "deploy/compose/.local/demo.env"
+    local.write_text(
+        local.read_text() + f"HEGEMONY_PLATFORM_BUILD=local\nHEGEMONY_PLATFORM_BUILD_DIR={other}\n"
+    )
+    env = {k: v for k, v in sandbox.env.items() if k != "HEGEMONY_PLATFORM_DIR"}
+    result = subprocess.run(
+        ["bash", str(sandbox.checkout / "deploy/compose/compose.sh"), "logs"],
+        env={**env, "FAKE_LOG": str(sandbox.root / "docker.log")},
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert result.returncode == 0, result.stderr
+    files = [a for a in _compose_call(sandbox) if a.endswith(".yml")]
+    assert files[0] == str(other / "deploy/compose/docker-compose.prod.yml")
+
+
 def test_compose_local_build_needs_the_plugin_repositories(sandbox: Sandbox) -> None:
     assert sandbox.run("--no-up").returncode == 0
     (sandbox.platform / "deploy/compose/docker-compose.prod-local.yml").write_text("{}\n")
@@ -457,11 +483,15 @@ def test_up_records_the_build_for_the_other_tasks(sandbox: Sandbox, build: str) 
     )
     after = _local_env(sandbox)
     assert after.get("HEGEMONY_PLATFORM_BUILD") == ("local" if build == "local" else None)
+    expected_dir = str(sandbox.platform.resolve()) if build == "local" else None
+    assert after.get("HEGEMONY_PLATFORM_BUILD_DIR") == expected_dir
     before.pop("HEGEMONY_PLATFORM_BUILD")
     after.pop("HEGEMONY_PLATFORM_BUILD", None)
+    after.pop("HEGEMONY_PLATFORM_BUILD_DIR", None)
     assert after == before
     assert stat.S_IMODE(local.stat().st_mode) == 0o600
-    assert local.read_text().count("HEGEMONY_PLATFORM_BUILD") <= 1
+    assert local.read_text().count("HEGEMONY_PLATFORM_BUILD=") <= 1
+    assert local.read_text().count("HEGEMONY_PLATFORM_BUILD_DIR=") <= 1
 
 
 def test_up_builds_the_platform_before_the_demo_images() -> None:

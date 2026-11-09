@@ -33,10 +33,18 @@ case "$platform_build" in
 esac
 local_env="$compose_dir/.local/demo.env"
 [[ -f "$local_env" ]] || die "$local_env is missing: run install.sh (it generates the demo password)"
-# Record the mode for compose.sh (the environment variable wins over the file).
-recorded="$(grep -v '^HEGEMONY_PLATFORM_BUILD=' "$local_env" || true)"
+# Record the mode for compose.sh (the environment variable wins over the file),
+# and for a local build the checkout given for it, so later tasks use it too.
+recorded="$(grep -vE '^HEGEMONY_PLATFORM_BUILD(_DIR)?=' "$local_env" || true)"
 (umask 077 && printf '%s\n' "$recorded" >"$local_env.tmp")
-[[ "$platform_build" == release ]] || echo "HEGEMONY_PLATFORM_BUILD=local" >>"$local_env.tmp"
+if [[ "$platform_build" == local ]]; then
+  echo "HEGEMONY_PLATFORM_BUILD=local" >>"$local_env.tmp"
+  if [[ -n "${HEGEMONY_PLATFORM_DIR:-}" ]]; then
+    build_dir="$(cd -- "$HEGEMONY_PLATFORM_DIR" 2>/dev/null && pwd)" \
+      || { rm -f "$local_env.tmp"; die "no platform checkout at $HEGEMONY_PLATFORM_DIR"; }
+    echo "HEGEMONY_PLATFORM_BUILD_DIR=$build_dir" >>"$local_env.tmp"
+  fi
+fi
 mv "$local_env.tmp" "$local_env"
 unset recorded
 export HEGEMONY_PLATFORM_BUILD="$platform_build"

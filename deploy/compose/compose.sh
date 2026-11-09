@@ -20,8 +20,9 @@
 #                         "local" builds the platform images from the platform
 #                         checkout instead (tag "local"), with the platform's
 #                         docker-compose.prod-local.yml. up.sh records the mode
-#                         of the last bring-up in .local/demo.env, so the other
-#                         tasks keep using the same images.
+#                         of the last bring-up (and, for local, the checkout it
+#                         built from) in .local/demo.env, so the other tasks
+#                         keep using the same images and Compose files.
 #
 # The lab is a separate project: deploy/lab/lab.sh.
 set -euo pipefail
@@ -44,14 +45,22 @@ setting() {
   printf '%s' "$value"
 }
 
-platform_dir="$(setting HEGEMONY_PLATFORM_DIR)"
+build="$(setting HEGEMONY_PLATFORM_BUILD)"
+
+# A local build records the checkout it was built from as
+# HEGEMONY_PLATFORM_BUILD_DIR, so the later tasks use the same Compose files.
+# HEGEMONY_PLATFORM_DIR in the environment still wins.
+platform_dir="${HEGEMONY_PLATFORM_DIR:-}"
+if [[ -z "$platform_dir" && "${build:-release}" == local ]]; then
+  platform_dir="$(setting HEGEMONY_PLATFORM_BUILD_DIR)"
+fi
+[[ -n "$platform_dir" ]] || platform_dir="$(setting HEGEMONY_PLATFORM_DIR)"
 platform_dir="${platform_dir:-$HEGEMONY_DEMO_ROOT/../hegemony}"
 
 [[ -d "$platform_dir/deploy/compose" ]] \
   || die "no platform checkout at $platform_dir (set HEGEMONY_PLATFORM_DIR, or run install.sh)"
 platform_compose="$(cd -- "$platform_dir/deploy/compose" && pwd)"
 
-build="$(setting HEGEMONY_PLATFORM_BUILD)"
 case "${build:-release}" in
   release)
     # The platform version: a value in the environment or recorded by
