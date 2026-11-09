@@ -294,7 +294,7 @@ def compose(model: Model) -> dict[str, Any]:
         "volumes": [
             "gitea-data:/data",
             "../../deploy/lab/gitea/seed.sh:/seed/seed.sh:ro",
-            "../inventory:/seed/inventory:ro",
+            "../../deploy/lab/inventory:/seed/inventory:ro",
         ],
         "networks": ["mgmt"],
     }

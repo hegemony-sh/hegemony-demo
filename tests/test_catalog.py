@@ -20,14 +20,15 @@ from hegemony_demo_gen.catalog import (
     check_service_reference,
 )
 from hegemony_demo_gen.model import build_model
-from hegemony_demo_gen.render import render_all
+from hegemony_demo_gen.render import dump_yaml, inventory_documents, render_all
 from hegemony_demo_gen.spec import SpecError, load_spec
 
 from tests.test_platform_pin import read_pin
 
 ROOT = Path(__file__).resolve().parents[1]
 SPEC = ROOT / "spec" / "basic.yaml"
-INVENTORY = "dist/inventory/"
+# A prefix for the expected inventory among the rendered files (not written).
+INVENTORY = "inventory/"
 # The first Git inventory plugin release that reads object-types/ and objects/.
 FIRST_PLUGIN_WITH_OBJECTS = (0, 5, 0)
 
@@ -39,7 +40,12 @@ def _spec(enabled: bool = True) -> dict[str, Any]:
 
 
 def _render(spec: dict[str, Any]) -> dict[str, str]:
-    return render_all(build_model(spec), ROOT / "stories")
+    """The generated files, plus the inventory the spec expects under INVENTORY."""
+    model = build_model(spec)
+    files = render_all(model, ROOT / "stories")
+    for path, document in inventory_documents(model).items():
+        files[INVENTORY + path] = "" if document is None else dump_yaml(document)
+    return files
 
 
 def _s4_form(files: dict[str, str]) -> dict[str, Any]:

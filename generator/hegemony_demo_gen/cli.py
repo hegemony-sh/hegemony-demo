@@ -3,7 +3,11 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""`demo-gen`: write (or with --check, verify) the generated files."""
+"""`demo-gen`: write (or with --check, verify) the generated files.
+
+With --check-inventory DIR, compare an inventory tree (the `inventory/` folder
+of a hegemony-demo-inventory checkout) with what the spec expects instead.
+"""
 
 from __future__ import annotations
 
@@ -11,8 +15,8 @@ import argparse
 import sys
 from pathlib import Path
 
-from .model import build_model
-from .render import render_all
+from .model import Model, build_model
+from .render import check_inventory, render_all
 from .spec import SpecError, load_spec
 
 # Trees the generator owns completely: anything else in them is stale.
@@ -62,6 +66,16 @@ def write(root: Path, files: dict[str, str]) -> None:
             target.write_text(text, encoding="utf-8")
 
 
+def report_inventory(model: Model, tree: Path) -> int:
+    problems = check_inventory(model, tree)
+    if problems:
+        print(f"demo-gen: the inventory in {tree} does not match the spec:")
+        print("\n".join(f"  {p}" for p in problems))
+        return 1
+    print(f"demo-gen: the inventory in {tree} matches the spec")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="demo-gen", description=__doc__)
     parser.add_argument("--spec", type=Path, help="spec file (default: spec/basic.yaml)")
@@ -69,10 +83,19 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--check", action="store_true", help="fail if the committed output is not current"
     )
+    parser.add_argument(
+        "--check-inventory",
+        type=Path,
+        metavar="DIR",
+        help="fail if the inventory tree in DIR does not match the spec",
+    )
     args = parser.parse_args(argv)
     try:
         root = (args.root or find_root(Path.cwd())).resolve()
-        files = generate(root, args.spec or root / "spec" / "basic.yaml")
+        spec = args.spec or root / "spec" / "basic.yaml"
+        if args.check_inventory is not None:
+            return report_inventory(build_model(load_spec(spec)), args.check_inventory)
+        files = generate(root, spec)
     except (SpecError, OSError) as exc:
         print(f"demo-gen: {exc}", file=sys.stderr)
         return 2

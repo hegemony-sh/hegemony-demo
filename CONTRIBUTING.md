@@ -39,6 +39,20 @@ Then:
 Never edit `dist/` or `docs/_generated/` by hand: `uv run demo-gen --check`
 fails in CI when they differ from what the generator writes.
 
+The lab's Git inventory (the planned site, its devices and the service
+catalogue) lives in
+[hegemony-demo-inventory](https://github.com/hegemony-sh/hegemony-demo-inventory),
+and `platform.env` pins a release tag of it. To change it:
+
+1. Change `inventory/` there (and `spec/basic.yaml` here, if the spec changes
+   too), and tag a release there.
+2. Pin the tag in `platform.env` (`HEGEMONY_INVENTORY_REF`).
+3. Check: `deploy/lab/fetch-inventory.sh` and then
+   `uv run demo-gen --check-inventory deploy/lab/inventory`. CI runs the same.
+
+To try an untagged change, set `HEGEMONY_INVENTORY_REPO` and
+`HEGEMONY_INVENTORY_REF` (a branch works too) before `task lab:up`.
+
 Names from the demo's theme (the operator, the cities, the people) belong in
 `spec/basic.yaml` and in prose only. Flow names, secret names, file names,
 headers and other technical identifiers stay theme-free, so a rename is a spec

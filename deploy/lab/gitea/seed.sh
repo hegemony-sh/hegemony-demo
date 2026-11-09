@@ -5,8 +5,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
 # Seed the lab's Gitea, once per start and safe to repeat: the platform's user,
-# an organization, the inventory repository (refreshed from dist/inventory/
-# whenever that changes) and an empty repository for configuration backups.
+# an organization, the inventory repository (refreshed from the pinned
+# inventory, deploy/lab/inventory/, whenever that changes) and an empty
+# repository for configuration backups.
 # Runs in the Gitea image, against the server's data volume and its API.
 set -eu
 
@@ -45,7 +46,13 @@ for repo in "$INVENTORY_REPO" "$BACKUP_REPO"; do
   fi
 done
 
-# The inventory: dist/inventory/ under inventory/, committed only when it changed.
+# The inventory: the pinned tree under inventory/, committed only when it changed.
+# deploy/lab/fetch-inventory.sh puts it there; without it, Docker mounts an
+# empty folder, which must not empty the repository.
+if [ ! -d /seed/inventory/sites ]; then
+  echo "gitea-seed: no inventory in /seed/inventory; run deploy/lab/fetch-inventory.sh" >&2
+  exit 1
+fi
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 remote="${GITEA_URL%%://*}://$auth@${GITEA_URL#*://}/$GIT_ORG/$INVENTORY_REPO.git"
@@ -59,7 +66,7 @@ if git diff --cached --quiet; then
   echo "gitea-seed: inventory is current"
 else
   git -c user.name="Lab seed" -c user.email="seed@lab.example" \
-    commit -q -m "Inventory from the demo's dist/inventory/"
+    commit -q -m "Inventory from the demo's pinned hegemony-demo-inventory release"
   git push -q origin HEAD:main
   echo "gitea-seed: inventory updated"
 fi
