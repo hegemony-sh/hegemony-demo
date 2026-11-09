@@ -13,10 +13,12 @@
 #
 # DRAFT. It cannot pass until platform 1.0.0 (or a release candidate) is
 # released and pinned in platform.env, or named by the platform_version input.
-# Before the images and repositories are public it needs two repository
-# secrets, both read-only: GHCR_READ_TOKEN (read:packages) and
-# REPOS_READ_TOKEN (contents: read on the platform repository). After the
-# launch, delete both: the `public` job then proves that no login is needed.
+# It reads the platform and its images without a login, so it passes only
+# once they are public. The optional read-only secrets GHCR_READ_TOKEN
+# (read:packages) and REPOS_READ_TOKEN (contents: read on the platform
+# repository) are passed when set, but the repository does not set them: run
+# a branch locally before launch (CONTRIBUTING.md). The `public` job proves
+# that no login is needed.
 
 name: E2E
 

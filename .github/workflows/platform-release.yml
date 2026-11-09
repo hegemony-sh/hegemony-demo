@@ -43,8 +43,9 @@ jobs:
         with:
           persist-credentials: false
 
-      # The platform repository is private until launch: its releases are
-      # read with REPOS_READ_TOKEN, as in the release and E2E workflows.
+      # Platform releases are read without a login once the platform is
+      # public; REPOS_READ_TOKEN is passed when set, as in the release and E2E
+      # workflows, but the repository does not set it.
       - name: Pin the newest published releases
         id: pin
         env:
