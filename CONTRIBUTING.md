@@ -62,19 +62,25 @@ come back.
 ### Run a branch before launch
 
 Until the platform repository and its images are public, the installer needs
-tokens, passed in the environment and never written to disk by it:
-`HEGEMONY_GIT_TOKEN` (clone the platform repository), `HEGEMONY_GHCR_TOKEN`
-(`read:packages` on ghcr.io) and `HEGEMONY_GITHUB_TOKEN` (plugin wheels of
-private releases). `HEGEMONY_DEMO_REF` picks the branch, and
-`HEGEMONY_PLATFORM_VERSION` a platform release other than the pinned one:
+tokens in the environment: `HEGEMONY_GIT_TOKEN` (clone the platform
+repository), `HEGEMONY_GHCR_TOKEN` (`read:packages` on ghcr.io) and
+`HEGEMONY_GITHUB_TOKEN` (plugin wheels of private releases). The ghcr.io login
+lives in a temporary Docker configuration that `up.sh` deletes when it exits;
+Docker keeps the token there base64-encoded, and a killed run can leave it
+behind. `HEGEMONY_DEMO_REF` picks the branch, and `HEGEMONY_PLATFORM_VERSION`
+a platform release other than the pinned one. The installer is downloaded
+outside the checkout, so it never overwrites the tracked `install.sh`:
 
 ```sh
 read -rs HEGEMONY_GHCR_TOKEN && export HEGEMONY_GHCR_TOKEN
 read -rs HEGEMONY_GIT_TOKEN && export HEGEMONY_GIT_TOKEN
 export HEGEMONY_GITHUB_TOKEN="$HEGEMONY_GIT_TOKEN"
 export HEGEMONY_DEMO_REF=my-branch
-curl -fsSLO "https://raw.githubusercontent.com/hegemony-sh/hegemony-demo/$HEGEMONY_DEMO_REF/install.sh"
-bash install.sh
+installer="$(mktemp)"
+curl -fsSL -o "$installer" \
+  "https://raw.githubusercontent.com/hegemony-sh/hegemony-demo/$HEGEMONY_DEMO_REF/install.sh" \
+  && bash "$installer"
+rm -f "$installer"
 ```
 
 The repository has no such secrets, so until launch the E2E, release and
