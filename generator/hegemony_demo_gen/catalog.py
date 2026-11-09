@@ -42,8 +42,8 @@ ENVIRONMENTS = ("production", "staging")
 PURPOSES = ("primary", "replacement")
 # Each address is announced as a host route.
 HOST_PREFIX_LENGTH = 32
-# The addresses the s4 flow's OpenTofu validation accepts (service.tf matches
-# ^10\.255\.100\.[0-9]{1,3}$), whatever lab.service_prefixes says.
+# The addresses the s4 flow's OpenTofu validation and form accept: hosts .1 to
+# .254 of this network, whatever lab.service_prefixes says.
 S4_ADDRESSES = ipaddress.IPv4Network("10.255.100.0/24")
 
 
@@ -149,8 +149,13 @@ def build_catalog(raw: Any, service_prefixes: str) -> ServiceCatalog:
                 prefixes.broadcast_address,
             ):
                 raise SpecError(f"{awhere}: {host} is not a host address in {prefixes}")
-            if host not in S4_ADDRESSES:
-                raise SpecError(f"{awhere}: {host} is outside {S4_ADDRESSES}, which s4 accepts")
+            if host not in S4_ADDRESSES or host in (
+                S4_ADDRESSES.network_address,
+                S4_ADDRESSES.broadcast_address,
+            ):
+                raise SpecError(
+                    f"{awhere}: {host} is not a host in {S4_ADDRESSES}, which s4 accepts"
+                )
             if str(host) in seen_addresses:
                 raise SpecError(f"{awhere}: {host} is used twice")
             seen_addresses.add(str(host))

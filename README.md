@@ -99,8 +99,8 @@ From the demo directory (`./hegemony-demo/demo`; the platform's files are in
 | With `task` | Without |
 | --- | --- |
 | `task up` | `deploy/compose/up.sh` |
-| `task down` | `deploy/compose/compose.sh down` |
-| `task reset` (deletes all demo data) | `deploy/compose/compose.sh down --volumes` |
+| `task down` | `deploy/compose/compose.sh down`, then `deploy/lab/lab.sh down` |
+| `task reset` (deletes all demo data) | `deploy/compose/compose.sh down --volumes --remove-orphans`, then `deploy/lab/lab.sh down --volumes --remove-orphans` |
 | `task logs -- api` | `deploy/compose/compose.sh logs -f api` |
 | `task restart-worker` | `deploy/compose/compose.sh restart worker` |
 | `task password` | `grep PASSWORD deploy/compose/.local/demo.env` |

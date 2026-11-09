@@ -64,7 +64,10 @@ def load_spec(path: Path, _seen: tuple[Path, ...] = ()) -> dict[str, Any]:
     if path in _seen:
         chain = " -> ".join(p.name for p in (*_seen, path))
         raise SpecError(f"extends loop: {chain}")
-    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except (yaml.YAMLError, UnicodeDecodeError) as exc:
+        raise SpecError(f"{path}: not readable YAML: {exc}") from None
     if not isinstance(data, dict):
         raise SpecError(f"{path}: a spec is a mapping")
     parent = data.pop("extends", None)

@@ -76,11 +76,14 @@ jobs:
           HEGEMONY_PLATFORM_VERSION: ${{ env.PLATFORM_VERSION }}
           HEGEMONY_GHCR_TOKEN: ${{ secrets.GHCR_READ_TOKEN }}
           HEGEMONY_GIT_TOKEN: ${{ secrets.REPOS_READ_TOKEN }}
+          # fetch-wheels.sh reads this name for a plugin release not yet public.
+          HEGEMONY_GITHUB_TOKEN: ${{ secrets.REPOS_READ_TOKEN }}
           HEGEMONY_DEMO_WAIT_SECONDS: "900"
         run: |
           [ -n "$HEGEMONY_PLATFORM_VERSION" ] || unset HEGEMONY_PLATFORM_VERSION
           [ -n "$HEGEMONY_GHCR_TOKEN" ] || unset HEGEMONY_GHCR_TOKEN
           [ -n "$HEGEMONY_GIT_TOKEN" ] || unset HEGEMONY_GIT_TOKEN
+          [ -n "$HEGEMONY_GITHUB_TOKEN" ] || unset HEGEMONY_GITHUB_TOKEN
           sh install.sh --dir "$RUNNER_TEMP/demo"
 
       - name: Every service is up and healthy

@@ -51,8 +51,9 @@ Log in as **`engineer`** and look around:
   from a second source: the Git inventory provider reads it from the lab's
   Gitea, repository `netops/inventory`. The sites table is in
   [docs/_generated/sites.md](_generated/sites.md).
-- **Flows**: *Announce service prefix* and *Maintenance window*. Open one in the
-  editor to see the graph the stories run.
+- **Flows**: *Announce service prefix*, *Maintenance window*, *Service as
+  code* and *Configuration backup*. Open one in the editor to see the graph
+  the stories run.
 - **Plugins**: the step, inventory and notification plugins the platform runs,
   among them the Git inventory plugin the demo adds.
 
