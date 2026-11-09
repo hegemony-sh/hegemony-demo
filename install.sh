@@ -20,7 +20,7 @@ unset CDPATH 2>/dev/null || true
 # "main" in the repository.
 INSTALLER_VERSION=main
 
-DEMO_REPO=${HEGEMONY_DEMO_REPO:-https://github.com/hegemony-sh/hegemony-demo-data.git}
+DEMO_REPO=${HEGEMONY_DEMO_REPO:-https://github.com/hegemony-sh/hegemony-demo.git}
 DEMO_REF=${HEGEMONY_DEMO_REF:-$INSTALLER_VERSION}
 MIN_MEMORY_GIB=6
 WANT_MEMORY_GIB=8

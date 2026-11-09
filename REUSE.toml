@@ -1,7 +1,7 @@
 version = 1
 SPDX-PackageName = "hegemony-demo"
 SPDX-PackageSupplier = "Rexonix s.r.o."
-SPDX-PackageDownloadLocation = "https://github.com/hegemony-sh/hegemony-demo-data"
+SPDX-PackageDownloadLocation = "https://github.com/hegemony-sh/hegemony-demo"
 
 # Lockfiles and JSON carry no comment syntax.
 [[annotations]]
