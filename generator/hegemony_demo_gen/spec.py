@@ -21,7 +21,7 @@ class SpecError(ValueError):
     """The spec is malformed or inconsistent."""
 
 
-def _identity(item: object) -> tuple[str, Any] | None:
+def _identity(item: Any) -> tuple[str, Any] | None:
     if not isinstance(item, dict):
         return None
     for key in IDENTITY_KEYS:

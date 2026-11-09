@@ -12,10 +12,16 @@ repos:
       - id: check-merge-conflict
       - id: check-yaml
         exclude: ^stories/.*\.j2$
+      - id: check-json
       - id: check-toml
       - id: end-of-file-fixer
       - id: trailing-whitespace
         args: [--markdown-linebreak-ext=md]
+
+  - repo: https://github.com/abravalheri/validate-pyproject
+    rev: v0.24.1
+    hooks:
+      - id: validate-pyproject
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.14.2
@@ -27,6 +33,10 @@ repos:
     rev: v1.42.1
     hooks:
       - id: typos
+        # Report only: the hook's default --write-changes edits files, and a
+        # spell checker gets to flag prose, not rewrite it (as in the platform
+        # repository). See typos.toml.
+        args: ["--force-exclude"]
 
   - repo: https://github.com/zizmorcore/zizmor-pre-commit
     rev: v1.26.1
@@ -56,6 +66,12 @@ repos:
 
   - repo: local
     hooks:
+      - id: ty
+        name: "Python: type check (ty)"
+        entry: uv run ty check
+        language: system
+        pass_filenames: false
+        files: \.py$
       - id: demo-gen
         name: "Data: regenerate dist/ and docs/_generated/"
         entry: env PYTHONDONTWRITEBYTECODE=1 uv run demo-gen
