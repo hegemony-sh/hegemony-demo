@@ -1,0 +1,101 @@
+# SPDX-FileCopyrightText: 2026 Rexonix s.r.o.
+# SPDX-FileContributor: Jakub Trávník <jakub.travnik@gmail.com>
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+# Adopt a platform release. The platform's release workflow sends a
+# `platform-release` repository_dispatch when it publishes a release; this
+# workflow pins the newest published platform release and the plugin wheels
+# it was built with in platform.env (scripts/latest_release.py write, the
+# command a maintainer runs by hand), and opens a pull request for review on
+# the platform/<version> branch. The dispatch payload is not used: the
+# release comes from the platform's published releases, never from the event.
+#
+# A pull request opened with the workflow token starts no workflow, so this
+# workflow starts the Check and E2E workflows on the branch itself; their
+# results show on the pull request. Running it again for a version whose
+# branch exists refreshes the branch and leaves the pull request in place.
+
+name: Adopt platform release
+
+on:
+  repository_dispatch:
+    types: [platform-release]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: platform-release
+  cancel-in-progress: false
+
+jobs:
+  adopt:
+    name: Pin the newest platform release and open a pull request
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # push the platform/<version> branch
+      pull-requests: write # open the pull request
+      actions: write # start the Check and E2E workflows on the branch
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      # The platform repository is private until launch: its releases are
+      # read with REPOS_READ_TOKEN, as in the release and E2E workflows.
+      - name: Pin the newest published releases
+        id: pin
+        env:
+          HEGEMONY_GITHUB_TOKEN: ${{ secrets.REPOS_READ_TOKEN }}
+        run: |
+          python3 scripts/latest_release.py write
+          version="$(sed -n 's/^HEGEMONY_PLATFORM_VERSION=//p' platform.env | tail -n 1)"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if git diff --quiet -- platform.env; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "platform $version is already pinned; nothing to do"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git --no-pager diff -- platform.env
+          fi
+
+      - name: Push the branch, open the pull request, start the checks
+        if: steps.pin.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          BASE: ${{ github.event.repository.default_branch }}
+          VERSION: ${{ steps.pin.outputs.version }}
+        run: |
+          set -euo pipefail
+          branch="platform/${VERSION}"
+          title="chore(deps): adopt platform ${VERSION}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$branch"
+          git add platform.env
+          # Signed off: the DCO check runs on every commit of a pull request.
+          git commit -s -m "$title" \
+            -m "Pin platform ${VERSION} and the plugin wheels it was built with
+          (scripts/latest_release.py write)."
+          # The branch belongs to this workflow: a run for the same version
+          # replaces it with the freshly pinned state. The token reaches git as
+          # an environment-supplied config entry, never in an argument list.
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          GIT_CONFIG_COUNT=1 \
+            GIT_CONFIG_KEY_0="http.https://github.com/.extraheader" \
+            GIT_CONFIG_VALUE_0="AUTHORIZATION: basic ${auth}" \
+            git push -f "https://github.com/${REPO}" "$branch"
+          existing="$(gh pr list --repo "$REPO" --head "$branch" --base "$BASE" --state open --json number --jq '.[0].number')"
+          if [ -z "$existing" ]; then
+            gh pr create --repo "$REPO" --head "$branch" --base "$BASE" --title "$title" \
+              --body "Pins platform ${VERSION} and the plugin wheels it was built with in \`platform.env\` (\`scripts/latest_release.py write\`), after the platform announced the release.
+
+          The Check and E2E workflows were started on this branch by the workflow that opened this pull request; their results show below. Merge when both pass, then tag the demo release (CONTRIBUTING.md, Releasing)."
+          else
+            echo "pull request #${existing} for ${branch} is already open; branch refreshed"
+          fi
+          gh workflow run check.yml --repo "$REPO" --ref "$branch"
+          gh workflow run e2e.yml --repo "$REPO" --ref "$branch" -f platform_version=pinned

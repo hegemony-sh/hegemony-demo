@@ -8,6 +8,9 @@ name: Check
 on:
   push:
   pull_request:
+  # Started by the platform-release workflow on the branch it pushes: a push
+  # made with the workflow token starts no workflow by itself.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -40,7 +43,7 @@ jobs:
           persist-credentials: false
       - uses: wagoid/commitlint-github-action@b948419dd99f3fd78a6548d48f94e3df7f6bf3ed # v6
         with:
-          configFile: .commitlintrc.yaml
+          configFile: commitlint.config.mjs
 
   security-scans:
     name: Security scans (gitleaks, zizmor)
@@ -100,6 +103,20 @@ jobs:
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uvx typos@1.42.1
+
+  types:
+    name: Types (ty)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098 # v7
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: false
+      - run: uv sync --frozen --python "$PYTHON_VERSION"
+      - run: uv run ty check
 
   tests:
     name: Tests

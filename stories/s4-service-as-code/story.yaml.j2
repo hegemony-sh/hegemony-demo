@@ -11,8 +11,11 @@ approver, and the same values again change nothing. When nothing changed in
 the code, the flow still checks the routers against the stored state, and a
 router someone changed by hand waits for an approver too. The push writes
 what the apply produced, removes an address the stored state says was moved
-away, a second plan finds nothing left, and the edges prove they announce
-the address to the upstream provider.
+away, a check finds no other service address left on the routers, a second
+plan finds nothing left, and the edges prove they announce the address to
+the upstream provider. A run that leaves out a router the stored state
+holds stops before the plan is applied: it could not reach that router to
+take the address off.
 #]
 [%- set edges = devices("edge", live=True) %]
 flows:
@@ -127,6 +130,26 @@ flows:
               retries: 0
               on_failure: CONTINUE
               evidence_required: false
+          # Steps reach only the routers selected for this run, so a router
+          # the stored state still holds but the run leaves out could never
+          # be cleaned: it would keep the address while the state forgets it.
+          # Such a run stops before anything is applied.
+          - id: dropped
+            name: Routers dropped?
+            type: branch
+            branch_mode: rules
+            port_anchors:
+              else: E
+              error: S
+            position_x: 360
+            position_y: -390
+            cases:
+              - id: c_dropped
+                label: Dropped
+                when: >-
+                  (steps.plan.output.outputs.get('routers') or [])
+                  | reject('in', targets.service_targets | map(attribute='name') | list)
+                  | list | length > 0
           - id: code_changed
             name: Code changed?
             type: branch
@@ -335,6 +358,37 @@ flows:
               retries: 0
               on_failure: CONTINUE
               evidence_required: true
+          # A router that kept an address it should have dropped (an earlier
+          # removal that failed) fails the run instead of passing unnoticed:
+          # every service address the router carries is the applied one.
+          - id: no_leftover
+            name: No old address left?
+            type: step
+            handler: evidence.assert
+            tags:
+              phase: VERIFY
+            port_anchors:
+              failure: S
+            position_x: 2985
+            position_y: 840
+            params:
+              artifact_step_id: after
+              target_role: service_targets
+              command: show interface lo json
+              operator: contains
+              expected: '"{{ steps.apply.output.outputs.address }}"'
+              match_scope: lines
+              line_filter: '"10\.255\.100\.'
+              min_lines: 1
+              message: >-
+                A router still carries a service address other than
+                {{ steps.apply.output.outputs.address }}; remove it from the
+                router's loopback and OSPF by hand.
+            policy:
+              timeout_sec: 60
+              retries: 0
+              on_failure: CONTINUE
+              evidence_required: false
           - id: converged
             name: Plan again
             type: step
@@ -405,6 +459,12 @@ flows:
             terminal_status: success
             position_x: 4245
             position_y: 645
+          - id: dropped_routers
+            name: Routers left out of the state
+            type: terminal
+            terminal_status: failure
+            position_x: 600
+            position_y: -480
           - id: in_place
             name: Nothing to change
             type: terminal
@@ -443,7 +503,13 @@ flows:
           - source: observed:failure
             target: failed
           - source: plan:success
+            target: dropped
+          - source: "dropped:case:c_dropped"
+            target: dropped_routers
+          - source: dropped:else
             target: code_changed
+          - source: dropped:error
+            target: failed
           - source: plan:failure
             target: failed
           - source: "code_changed:case:c_changed"
@@ -492,7 +558,11 @@ flows:
           - source: push:failure
             target: failure
           - source: after:success
+            target: no_leftover
+          - source: no_leftover:success
             target: converged
+          - source: no_leftover:failure
+            target: failure
           - source: after:failure
             target: failure
           - source: converged:success

@@ -1,0 +1,29 @@
+# SPDX-FileCopyrightText: 2026 Rexonix s.r.o.
+# SPDX-FileContributor: Jakub Trávník <jakub.travnik@gmail.com>
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: Feature request
+description: Propose a change to the demo, a new story, or a change to the lab
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What should the demo show or make easier that it does not today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: The story, spec, lab or installer change you have in mind.
+    validations:
+      required: true
+  - type: textarea
+    id: platform
+    attributes:
+      label: Platform and plugins
+      description: Does it need a newer Hegemony release, a plugin, or a change outside this repository?
+    validations:
+      required: false

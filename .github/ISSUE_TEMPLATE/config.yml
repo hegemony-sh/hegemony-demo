@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2026 Rexonix s.r.o.
+# SPDX-FileContributor: Jakub Trávník <jakub.travnik@gmail.com>
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/hegemony-sh/hegemony-demo/blob/main/SECURITY.md
+    about: Report vulnerabilities privately as described in SECURITY.md, not as an issue.
+  - name: A problem in Hegemony itself
+    url: https://github.com/hegemony-sh/hegemony/issues
+    about: Bugs and ideas for the platform, rather than for this demo, belong in the platform repository.

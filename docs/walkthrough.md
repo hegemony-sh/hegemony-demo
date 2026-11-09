@@ -128,6 +128,10 @@ to execute it.*
    decides within 15 minutes, the window closes itself the same way, and the
    NOC mailbox gets a mail saying the approval expired.
 
+If the drain fails on one router, **Undo the drain** removes max-metric from
+all of them before the run fails, so a failed start never leaves a router
+drained.
+
 Also worth a look: **Schedules** has a *Weekly maintenance window* for Sunday
 03:00 UTC. It ships disabled, so the demo never drains routers on its own.
 
@@ -176,10 +180,11 @@ OpenTofu decides and Hegemony writes what it decided to the routers.*
    **Terraform States**, versioned and locked). **Push to the routers** writes
    what the apply produced (its `address` and `description` outputs) to both
    edges.
-5. **What the routers carry now** reads them again, **Plan again** finds
-   nothing left to change, and **Announced upstream?** checks that each edge
-   sends the route on to the provider: FRR's view of the route lists the peers
-   it is advertised to.
+5. **What the routers carry now** reads them again, **No old address left?**
+   checks that each edge carries no service address but the applied one,
+   **Plan again** finds nothing left to change, and **Announced upstream?**
+   checks that each edge sends the route on to the provider: FRR's view of the
+   route lists the peers it is advertised to.
 
 Now use the state:
 
@@ -191,6 +196,11 @@ Now use the state:
   10.255.100.21/32`). After approval, **Remove the old address** takes the old
   one off both edges (the stored state is how the flow knows it) before the
   push adds the new one. **Terraform States** now holds two versions.
+- **Leave a router out.** Run it again with only `dlp1-edge-01`. The stored
+  state still holds `dlp1-edge-02`, and the run can reach only the routers you
+  select, so it could not take the address off the other edge. **Routers
+  dropped?** stops the run at **Routers left out of the state** before
+  anything is applied.
 - **Pick it from the catalogue.** With `service_catalog.enabled: true` in
   `spec/basic.yaml` (it needs a platform release and Git inventory plugin 0.5.0
   or later in `platform.env`), the Git inventory also carries a service

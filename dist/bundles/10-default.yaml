@@ -514,6 +514,32 @@ flows:
           retries: 0
           on_failure: FAIL_RUN
           evidence_required: false
+      - id: undo_drain
+        name: Undo the drain
+        type: step
+        handler: netcli.execute
+        tags:
+          phase: IMPLEMENTATION
+        port_anchors:
+          in: N
+          failure: S
+          success: E
+        position_x: 195
+        position_y: 450
+        target_selectors:
+        - type: role
+          role: window_targets
+        params:
+          commands:
+          - configure terminal
+          - router ospf
+          - no max-metric router-lsa administrative
+          - end
+        policy:
+          timeout_sec: 120
+          retries: 1
+          on_failure: CONTINUE
+          evidence_required: false
       - id: settle
         name: Let traffic settle
         type: step
@@ -655,6 +681,10 @@ flows:
       - source: drain:success
         target: settle
       - source: drain:failure
+        target: undo_drain
+      - source: undo_drain:success
+        target: failed
+      - source: undo_drain:failure
         target: failed
       - source: settle:success
         target: fork
@@ -811,6 +841,20 @@ flows:
           retries: 0
           on_failure: CONTINUE
           evidence_required: false
+      - id: dropped
+        name: Routers dropped?
+        type: branch
+        branch_mode: rules
+        port_anchors:
+          else: E
+          error: S
+        position_x: 360
+        position_y: -390
+        cases:
+        - id: c_dropped
+          label: Dropped
+          when: (steps.plan.output.outputs.get('routers') or []) | reject('in', targets.service_targets
+            | map(attribute='name') | list) | list | length > 0
       - id: code_changed
         name: Code changed?
         type: branch
@@ -1006,6 +1050,32 @@ flows:
           retries: 0
           on_failure: CONTINUE
           evidence_required: true
+      - id: no_leftover
+        name: No old address left?
+        type: step
+        handler: evidence.assert
+        tags:
+          phase: VERIFY
+        port_anchors:
+          failure: S
+        position_x: 2985
+        position_y: 840
+        params:
+          artifact_step_id: after
+          target_role: service_targets
+          command: show interface lo json
+          operator: contains
+          expected: '"{{ steps.apply.output.outputs.address }}"'
+          match_scope: lines
+          line_filter: '"10\.255\.100\.'
+          min_lines: 1
+          message: A router still carries a service address other than {{ steps.apply.output.outputs.address
+            }}; remove it from the router's loopback and OSPF by hand.
+        policy:
+          timeout_sec: 60
+          retries: 0
+          on_failure: CONTINUE
+          evidence_required: false
       - id: converged
         name: Plan again
         type: step
@@ -1075,6 +1145,12 @@ flows:
         terminal_status: success
         position_x: 4245
         position_y: 645
+      - id: dropped_routers
+        name: Routers left out of the state
+        type: terminal
+        terminal_status: failure
+        position_x: 600
+        position_y: -480
       - id: in_place
         name: Nothing to change
         type: terminal
@@ -1113,7 +1189,13 @@ flows:
       - source: observed:failure
         target: failed
       - source: plan:success
+        target: dropped
+      - source: dropped:case:c_dropped
+        target: dropped_routers
+      - source: dropped:else
         target: code_changed
+      - source: dropped:error
+        target: failed
       - source: plan:failure
         target: failed
       - source: code_changed:case:c_changed
@@ -1160,7 +1242,11 @@ flows:
       - source: push:failure
         target: failure
       - source: after:success
+        target: no_leftover
+      - source: no_leftover:success
         target: converged
+      - source: no_leftover:failure
+        target: failure
       - source: after:failure
         target: failure
       - source: converged:success
