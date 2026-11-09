@@ -16,6 +16,13 @@
 # HEGEMONY_DEMO_OVERLAYS  demo overlays to add (default: "demo"; "none" composes
 #                         the platform's own images, which is how the bring-up
 #                         pulls them before building on top of them)
+# HEGEMONY_PLATFORM_BUILD "release" (default) runs the pinned released images;
+#                         "local" builds the platform images from the platform
+#                         checkout instead (tag "local"), with the platform's
+#                         docker-compose.prod-local.yml. up.sh records the mode
+#                         of the last bring-up (and, for local, the checkout it
+#                         built from) in .local/demo.env, so the other tasks
+#                         keep using the same images and Compose files.
 #
 # The lab is a separate project: deploy/lab/lab.sh.
 set -euo pipefail
@@ -38,26 +45,54 @@ setting() {
   printf '%s' "$value"
 }
 
-platform_dir="$(setting HEGEMONY_PLATFORM_DIR)"
+build="$(setting HEGEMONY_PLATFORM_BUILD)"
+
+# A local build records the checkout it was built from as
+# HEGEMONY_PLATFORM_BUILD_DIR, so the later tasks use the same Compose files.
+# HEGEMONY_PLATFORM_DIR in the environment still wins.
+platform_dir="${HEGEMONY_PLATFORM_DIR:-}"
+if [[ -z "$platform_dir" && "${build:-release}" == local ]]; then
+  platform_dir="$(setting HEGEMONY_PLATFORM_BUILD_DIR)"
+fi
+[[ -n "$platform_dir" ]] || platform_dir="$(setting HEGEMONY_PLATFORM_DIR)"
 platform_dir="${platform_dir:-$HEGEMONY_DEMO_ROOT/../hegemony}"
 
 [[ -d "$platform_dir/deploy/compose" ]] \
   || die "no platform checkout at $platform_dir (set HEGEMONY_PLATFORM_DIR, or run install.sh)"
 platform_compose="$(cd -- "$platform_dir/deploy/compose" && pwd)"
 
-# The platform version: a value in the environment or recorded by install.sh
-# (a test before the pin is filled) wins over platform.env.
-version="$(setting HEGEMONY_PLATFORM_VERSION)"
-[[ -n "$version" ]] || die "no HEGEMONY_PLATFORM_VERSION in platform.env"
-case "$version" in
-  placeholder-*) die "platform.env pins no platform release yet ($version); set HEGEMONY_PLATFORM_VERSION" ;;
+case "${build:-release}" in
+  release)
+    # The platform version: a value in the environment or recorded by
+    # install.sh (a test before the pin is filled) wins over platform.env.
+    version="$(setting HEGEMONY_PLATFORM_VERSION)"
+    [[ -n "$version" ]] || die "no HEGEMONY_PLATFORM_VERSION in platform.env"
+    case "$version" in
+      placeholder-*) die "platform.env pins no platform release yet ($version); set HEGEMONY_PLATFORM_VERSION" ;;
+    esac
+    export HEGEMONY_IMAGE_TAG="$version"
+    ;;
+  local)
+    # The platform's own build file builds from the checkout and the plugin
+    # repositories beside it.
+    [[ -f "$platform_compose/docker-compose.prod-local.yml" ]] \
+      || die "$platform_compose has no docker-compose.prod-local.yml, so it cannot build the platform images"
+    platform_parent="$(cd -- "$platform_dir/.." && pwd)"
+    for plugins in inventory notification secret step; do
+      [[ -d "$platform_parent/hegemony-$plugins-plugins" ]] \
+        || die "a local platform build needs $platform_parent/hegemony-$plugins-plugins:
+       git clone https://github.com/hegemony-sh/hegemony-$plugins-plugins.git \"$platform_parent/hegemony-$plugins-plugins\""
+    done
+    export HEGEMONY_IMAGE_TAG=local
+    ;;
+  *) die "unknown HEGEMONY_PLATFORM_BUILD: $build (use release or local)" ;;
 esac
-export HEGEMONY_IMAGE_TAG="$version"
 
 # The platform's api, worker, scheduler and migrate load this through env_file.
 export HEGEMONY_COMPOSE_ENV_FILE="$compose_dir/.env.demo"
 
 files=(-f "$platform_compose/docker-compose.prod.yml")
+[[ "${build:-release}" != local ]] || files+=(-f "$platform_compose/docker-compose.prod-local.yml")
 # The platform's own container registry (zot, stored in the s3 overlay's
 # object store) caches the images flow steps pull, so a story's second run
 # does not ask the image's registry again, and shows the Container Images

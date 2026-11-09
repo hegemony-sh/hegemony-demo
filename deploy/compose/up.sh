@@ -9,6 +9,12 @@
 # top, migrate the database, start everything and wait until the API is
 # ready. Safe to run again.
 #
+# HEGEMONY_PLATFORM_BUILD=local (what `task up:local` sets) builds the platform
+# images from the platform checkout instead of pulling the pinned release, for
+# trying an unreleased platform change with the demo. The mode is recorded in
+# .local/demo.env, so `task logs`, `task down` and the rest use the same
+# images; a plain `task up` goes back to the release.
+#
 # Before the platform images are public (a test before launch), set HEGEMONY_GHCR_TOKEN
 # (a read:packages token) and optionally HEGEMONY_GHCR_USER. The login goes to
 # a throwaway Docker config used for the pull and build only, removed after.
@@ -19,6 +25,54 @@ compose="$compose_dir/compose.sh"
 
 log() { echo "[hegemony-demo] $*"; }
 die() { echo "[hegemony-demo] ERROR: $*" >&2; exit 1; }
+
+platform_build="${HEGEMONY_PLATFORM_BUILD:-release}"
+case "$platform_build" in
+  release | local) ;;
+  *) die "unknown HEGEMONY_PLATFORM_BUILD: $platform_build (use release or local)" ;;
+esac
+local_env="$compose_dir/.local/demo.env"
+[[ -f "$local_env" ]] || die "$local_env is missing: run install.sh (it generates the demo password)"
+# The checkout a local build uses: the one given now, else the one recorded by
+# the last local build (compose.sh falls back to HEGEMONY_PLATFORM_DIR).
+build_dir=""
+if [[ "$platform_build" == local ]]; then
+  if [[ -n "${HEGEMONY_PLATFORM_DIR:-}" ]]; then
+    build_dir="$(cd -- "$HEGEMONY_PLATFORM_DIR" 2>/dev/null && pwd)" \
+      || die "no platform checkout at $HEGEMONY_PLATFORM_DIR"
+  else
+    build_dir="$(sed -n 's/^HEGEMONY_PLATFORM_BUILD_DIR=//p' "$local_env" | tail -n 1)"
+    if [[ -z "$build_dir" ]]; then
+      # Record the checkout compose.sh would fall back to, so a later
+      # install.sh changing HEGEMONY_PLATFORM_DIR does not move this stack.
+      fallback="$(sed -n 's/^HEGEMONY_PLATFORM_DIR=//p' "$local_env" | tail -n 1 | tr -d '"')"
+      fallback="${fallback:-$compose_dir/../../../hegemony}"
+      build_dir="$(cd -- "$fallback" 2>/dev/null && pwd)" || build_dir=""
+    fi
+  fi
+fi
+
+# Check the new setting before recording it, so a mistake leaves the running
+# stack manageable with the setting it was started with.
+HEGEMONY_PLATFORM_BUILD="$platform_build" HEGEMONY_PLATFORM_DIR="${build_dir:-${HEGEMONY_PLATFORM_DIR:-}}" \
+  "$compose" config --quiet \
+  || die "the $platform_build platform build cannot start (see above); nothing was changed"
+
+# Record the mode for compose.sh (the environment variable wins over the file),
+# and for a local build its checkout, so the later tasks use the same files.
+# grep exits 1 when every line is a build line, 2 when it cannot read the file:
+# only the second must stop, or the passwords would be lost.
+status=0
+recorded="$(grep -vE '^HEGEMONY_PLATFORM_BUILD(_DIR)?=' "$local_env")" || status=$?
+(( status <= 1 )) || die "cannot read $local_env"
+(umask 077 && printf '%s\n' "$recorded" >"$local_env.tmp")
+if [[ "$platform_build" == local ]]; then
+  echo "HEGEMONY_PLATFORM_BUILD=local" >>"$local_env.tmp"
+  [[ -z "$build_dir" ]] || echo "HEGEMONY_PLATFORM_BUILD_DIR=$build_dir" >>"$local_env.tmp"
+fi
+mv "$local_env.tmp" "$local_env"
+unset recorded
+export HEGEMONY_PLATFORM_BUILD="$platform_build"
 
 registry_config=""
 cleanup() { [[ -z "$registry_config" ]] || rm -rf "$registry_config"; }
@@ -68,6 +122,12 @@ done
 
 log "Fetching plugin wheels ..."
 "$compose_dir/fetch-wheels.sh"
+
+if [[ "$platform_build" == local ]]; then
+  log "Building the platform images from the platform checkout (the first time takes a while) ..."
+  # migrate runs the api image, so building api covers it.
+  HEGEMONY_DEMO_OVERLAYS=none "$compose" build api worker scheduler ui
+fi
 
 log "Building the demo images ..."
 "$compose" build --quiet api worker

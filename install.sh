@@ -270,6 +270,10 @@ write_local_env() { # demo_root platform_dir platform_version
       echo "HEGEMONY_PLATFORM_DIR=$2"
       [ -z "$3" ] || echo "HEGEMONY_PLATFORM_VERSION=$3"
       echo "DOCKER_GID=$(detect_docker_gid)"
+      # The platform build of the running stack (up.sh records it; a bring-up
+      # sets it again).
+      [ ! -f "$local_env" ] \
+        || sed -n '/^HEGEMONY_PLATFORM_BUILD=/p; /^HEGEMONY_PLATFORM_BUILD_DIR=/p' "$local_env"
     } >"$local_env.new"
     mv -f "$local_env.new" "$local_env"
   )

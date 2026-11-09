@@ -12,6 +12,7 @@ clone local repositories.
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import stat
@@ -41,7 +42,7 @@ case "$1" in
     exit 0 ;;
   compose)
     [ "$2" = version ] && { echo "${FAKE_COMPOSE:-2.29.1}"; exit 0; }
-    echo "docker $*" >> "${FAKE_LOG:-/dev/null}"
+    echo "tag=${HEGEMONY_IMAGE_TAG:-} docker $*" >> "${FAKE_LOG:-/dev/null}"
     exit 0 ;;
   ps) exit 0 ;;
 esac
@@ -373,6 +374,190 @@ def test_compose_layers_platform_then_demo_files(sandbox: Sandbox) -> None:
     assert call[-1] == "ps"
 
 
+def _local_build_platform(sandbox: Sandbox) -> None:
+    """The platform's build file and the plugin repositories beside it."""
+    compose = sandbox.platform / "deploy" / "compose"
+    (compose / "docker-compose.prod-local.yml").write_text("services: {}\n")
+    for plugins in ("inventory", "notification", "secret", "step"):
+        (sandbox.platform.parent / f"hegemony-{plugins}-plugins").mkdir()
+
+
+def _compose_call(sandbox: Sandbox) -> list[str]:
+    return (sandbox.root / "docker.log").read_text().splitlines()[-1].split()
+
+
+def test_compose_local_build_adds_the_platform_build_file(sandbox: Sandbox) -> None:
+    assert sandbox.run("--no-up").returncode == 0
+    _local_build_platform(sandbox)
+    result = _compose(sandbox, "ps", HEGEMONY_PLATFORM_BUILD="local")
+    assert result.returncode == 0, result.stderr
+    call = _compose_call(sandbox)
+    assert call[0] == "tag=local"
+    files = [Path(call[i + 1]).name for i, arg in enumerate(call) if arg == "-f"]
+    assert files[:2] == ["docker-compose.prod.yml", "docker-compose.prod-local.yml"]
+    assert files[-1] == "docker-compose.demo.yml"
+
+
+def test_compose_release_build_runs_the_pinned_images(sandbox: Sandbox) -> None:
+    assert sandbox.run("--no-up").returncode == 0
+    _local_build_platform(sandbox)
+    result = _compose(sandbox, "ps")
+    assert result.returncode == 0, result.stderr
+    call = _compose_call(sandbox)
+    assert call[0] == "tag=1.0.0-rc.1"
+    assert not any(arg.endswith("docker-compose.prod-local.yml") for arg in call)
+
+
+def test_compose_follows_the_recorded_local_build(sandbox: Sandbox) -> None:
+    assert sandbox.run("--no-up").returncode == 0
+    _local_build_platform(sandbox)
+    local = sandbox.checkout / "deploy/compose/.local/demo.env"
+    local.write_text(local.read_text() + "HEGEMONY_PLATFORM_BUILD=local\n")
+    result = _compose(sandbox, "logs")
+    assert result.returncode == 0, result.stderr
+    assert _compose_call(sandbox)[0] == "tag=local"
+
+
+def test_compose_follows_the_recorded_local_checkout(sandbox: Sandbox, tmp_path: Path) -> None:
+    assert sandbox.run("--no-up").returncode == 0
+    _local_build_platform(sandbox)
+    other = tmp_path / "work2" / "hegemony"
+    (other / "deploy/compose").mkdir(parents=True)
+    (other / "deploy/compose/docker-compose.prod.yml").write_text("services: {}\n")
+    (other / "deploy/compose/docker-compose.prod-local.yml").write_text("services: {}\n")
+    for plugins in ("inventory", "notification", "secret", "step"):
+        (other.parent / f"hegemony-{plugins}-plugins").mkdir()
+    local = sandbox.checkout / "deploy/compose/.local/demo.env"
+    local.write_text(
+        local.read_text() + f"HEGEMONY_PLATFORM_BUILD=local\nHEGEMONY_PLATFORM_BUILD_DIR={other}\n"
+    )
+    env = {k: v for k, v in sandbox.env.items() if k != "HEGEMONY_PLATFORM_DIR"}
+    result = subprocess.run(
+        ["bash", str(sandbox.checkout / "deploy/compose/compose.sh"), "logs"],
+        env={**env, "FAKE_LOG": str(sandbox.root / "docker.log")},
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert result.returncode == 0, result.stderr
+    files = [a for a in _compose_call(sandbox) if a.endswith(".yml")]
+    assert files[0] == str(other / "deploy/compose/docker-compose.prod.yml")
+
+
+def test_compose_local_build_needs_the_plugin_repositories(sandbox: Sandbox) -> None:
+    assert sandbox.run("--no-up").returncode == 0
+    (sandbox.platform / "deploy/compose/docker-compose.prod-local.yml").write_text("{}\n")
+    result = _compose(sandbox, "ps", HEGEMONY_PLATFORM_BUILD="local")
+    assert result.returncode == 1
+    assert "hegemony-inventory-plugins" in result.stderr
+    assert "git clone" in result.stderr
+
+
+def test_compose_local_build_needs_the_platform_build_file(sandbox: Sandbox) -> None:
+    assert sandbox.run("--no-up").returncode == 0
+    result = _compose(sandbox, "ps", HEGEMONY_PLATFORM_BUILD="local")
+    assert result.returncode == 1
+    assert "docker-compose.prod-local.yml" in result.stderr
+
+
+def test_compose_refuses_an_unknown_build(sandbox: Sandbox) -> None:
+    assert sandbox.run("--no-up").returncode == 0
+    result = _compose(sandbox, "ps", HEGEMONY_PLATFORM_BUILD="nightly")
+    assert result.returncode == 1
+    assert "unknown HEGEMONY_PLATFORM_BUILD" in result.stderr
+
+
+@pytest.mark.parametrize("build", ["local", "release"])
+def test_up_records_the_build_for_the_other_tasks(sandbox: Sandbox, build: str) -> None:
+    assert sandbox.run("--no-up").returncode == 0
+    _local_build_platform(sandbox)
+    local = sandbox.checkout / "deploy/compose/.local/demo.env"
+    local.write_text(local.read_text() + "HEGEMONY_PLATFORM_BUILD=local\n")
+    before = _local_env(sandbox)
+    # The lab is not in the sandbox, so up.sh stops right after recording.
+    subprocess.run(
+        ["bash", str(sandbox.checkout / "deploy/compose/up.sh")],
+        env={**sandbox.env, "HEGEMONY_PLATFORM_BUILD": build},
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    after = _local_env(sandbox)
+    assert after.get("HEGEMONY_PLATFORM_BUILD") == ("local" if build == "local" else None)
+    expected_dir = str(sandbox.platform.resolve()) if build == "local" else None
+    assert after.get("HEGEMONY_PLATFORM_BUILD_DIR") == expected_dir
+    before.pop("HEGEMONY_PLATFORM_BUILD")
+    after.pop("HEGEMONY_PLATFORM_BUILD", None)
+    after.pop("HEGEMONY_PLATFORM_BUILD_DIR", None)
+    assert after == before
+    assert stat.S_IMODE(local.stat().st_mode) == 0o600
+    assert local.read_text().count("HEGEMONY_PLATFORM_BUILD=") <= 1
+    assert local.read_text().count("HEGEMONY_PLATFORM_BUILD_DIR=") <= 1
+
+
+def _up(sandbox: Sandbox, **env: str) -> subprocess.CompletedProcess[str]:
+    # The lab is not in the sandbox, so up.sh stops right after recording.
+    return subprocess.run(
+        ["bash", str(sandbox.checkout / "deploy/compose/up.sh")],
+        env={**sandbox.env, **env},
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+
+
+def test_up_keeps_the_recorded_checkout_on_the_next_local_build(sandbox: Sandbox) -> None:
+    assert sandbox.run("--no-up").returncode == 0
+    _local_build_platform(sandbox)
+    _up(sandbox, HEGEMONY_PLATFORM_BUILD="local")
+    recorded = _local_env(sandbox)["HEGEMONY_PLATFORM_BUILD_DIR"]
+    env = {k: v for k, v in sandbox.env.items() if k != "HEGEMONY_PLATFORM_DIR"}
+    sandbox.env = env
+    _up(sandbox, HEGEMONY_PLATFORM_BUILD="local")
+    assert _local_env(sandbox)["HEGEMONY_PLATFORM_BUILD_DIR"] == recorded
+
+
+def test_up_records_the_fallback_checkout_of_a_local_build(sandbox: Sandbox) -> None:
+    assert sandbox.run("--no-up").returncode == 0
+    _local_build_platform(sandbox)
+    sandbox.env = {k: v for k, v in sandbox.env.items() if k != "HEGEMONY_PLATFORM_DIR"}
+    _up(sandbox, HEGEMONY_PLATFORM_BUILD="local")
+    recorded = _local_env(sandbox)
+    assert recorded["HEGEMONY_PLATFORM_BUILD_DIR"] == str(sandbox.platform.resolve())
+
+
+def test_a_reinstall_keeps_the_recorded_build(sandbox: Sandbox) -> None:
+    assert sandbox.run("--no-up").returncode == 0
+    local = sandbox.checkout / "deploy/compose/.local/demo.env"
+    local.write_text(
+        local.read_text()
+        + "HEGEMONY_PLATFORM_BUILD=local\nHEGEMONY_PLATFORM_BUILD_DIR=/x/hegemony\n"
+    )
+    assert sandbox.run("--no-up").returncode == 0
+    recorded = _local_env(sandbox)
+    assert recorded["HEGEMONY_PLATFORM_BUILD"] == "local"
+    assert recorded["HEGEMONY_PLATFORM_BUILD_DIR"] == "/x/hegemony"
+    assert local.read_text().count("HEGEMONY_PLATFORM_BUILD=") == 1
+
+
+def test_up_changes_nothing_when_the_local_build_cannot_start(sandbox: Sandbox) -> None:
+    assert sandbox.run("--no-up").returncode == 0
+    local = sandbox.checkout / "deploy/compose/.local/demo.env"
+    before = local.read_text()
+    # No docker-compose.prod-local.yml and no plugin repositories.
+    result = _up(sandbox, HEGEMONY_PLATFORM_BUILD="local")
+    assert result.returncode == 1
+    assert "nothing was changed" in result.stderr
+    assert local.read_text() == before
+
+
+def test_up_builds_the_platform_before_the_demo_images() -> None:
+    up = (ROOT / "deploy/compose/up.sh").read_text()
+    platform_build = up.index("build api worker scheduler ui")
+    assert platform_build < up.index('"$compose" build --quiet api worker')
+    assert "HEGEMONY_DEMO_OVERLAYS=none" in up[up.rindex("\n", 0, platform_build) :]
+
+
 def test_compose_gives_an_older_install_a_registry_token_key(sandbox: Sandbox) -> None:
     assert sandbox.run("--no-up").returncode == 0
     local = sandbox.checkout / "deploy/compose/.local/demo.env"
@@ -415,7 +600,8 @@ def test_compose_refuses_the_placeholder(sandbox: Sandbox) -> None:
     not os.environ.get("HEGEMONY_TEST_PLATFORM_DIR"),
     reason="set HEGEMONY_TEST_PLATFORM_DIR to a platform checkout to render the full stack",
 )
-def test_the_full_stack_renders_against_a_platform_checkout(sandbox: Sandbox) -> None:
+@pytest.mark.parametrize("build", ["release", "local"])
+def test_the_full_stack_renders_against_a_platform_checkout(sandbox: Sandbox, build: str) -> None:
     real_docker = shutil.which("docker", path=os.environ.get("PATH"))
     assert real_docker
     (sandbox.bin / "docker").unlink()
@@ -427,5 +613,23 @@ def test_the_full_stack_renders_against_a_platform_checkout(sandbox: Sandbox) ->
         ).returncode
         == 0
     )
-    result = _compose(sandbox, "config", "--quiet", HEGEMONY_PLATFORM_DIR=platform)
+    env = {"HEGEMONY_PLATFORM_DIR": platform, "HEGEMONY_PLATFORM_BUILD": build}
+    result = _compose(sandbox, "config", "--format", "json", **env)
     assert result.returncode == 0, result.stderr
+    services = json.loads(result.stdout)["services"]
+    tag = "local" if build == "local" else "1.0.0-rc.1"
+    for name in ("api", "worker"):
+        assert services[name]["image"] == f"hegemony-demo-{name}:{tag}"
+        base = services[name]["build"]["args"]["BASE_IMAGE"]
+        assert base == f"ghcr.io/hegemony-sh/hegemony/{name}:{tag}"
+    for name in ("scheduler", "ui"):
+        assert services[name]["image"] == f"ghcr.io/hegemony-sh/hegemony/{name}:{tag}"
+        assert ("build" in services[name]) == (build == "local")
+    # Without the demo overlay, the local build makes the platform's own images.
+    platform_only = _compose(
+        sandbox, "config", "--format", "json", HEGEMONY_DEMO_OVERLAYS="none", **env
+    )
+    assert platform_only.returncode == 0, platform_only.stderr
+    api = json.loads(platform_only.stdout)["services"]["api"]
+    assert api["image"] == f"ghcr.io/hegemony-sh/hegemony/api:{tag}"
+    assert ("build" in api) == (build == "local")
