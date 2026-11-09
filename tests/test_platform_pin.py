@@ -29,16 +29,21 @@ def test_the_pin_names_a_version_or_the_placeholder() -> None:
 
 
 def test_the_platform_version_is_pinned_only_in_platform_env() -> None:
-    version = read_pin()["HEGEMONY_PLATFORM_VERSION"]
+    # A second pin would set the variable or name an image tag. Prose may still
+    # use a version as an example ("v1.0.0 runs platform 1.0.0"), and the
+    # tests use versions of their own.
+    version = re.escape(read_pin()["HEGEMONY_PLATFORM_VERSION"])
+    pin = re.compile(
+        rf"(HEGEMONY_PLATFORM_VERSION\s*[=:]\s*[\"']?|/hegemony/[\w-]+:){version}(?![\w.+-])"
+    )
     hits = [
         p.relative_to(ROOT).as_posix()
         for p in ROOT.rglob("*")
         if p.is_file()
-        and ".git" not in p.parts
-        and ".venv" not in p.parts
+        and not {".git", ".venv", "tests"} & set(p.relative_to(ROOT).parts)
         and p.suffix not in {".pyc", ".lock"}
         and p.name != "platform.env"
-        and version in p.read_text(errors="ignore")
+        and pin.search(p.read_text(errors="ignore"))
     ]
     assert hits == []
 
