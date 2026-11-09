@@ -30,7 +30,7 @@ addresses and credentials are made up for the demo.
 | Memory | 8 GiB for Docker (6 GiB at least) |
 | Disk | 25 GiB free for Docker images and data (15 GiB at least) |
 | Tools | `git`, `curl`, `bash`. [`task`](https://taskfile.dev) is optional and makes the lifecycle commands shorter. |
-| Ports | 8080, 8081, 8025 and 9000 free on 127.0.0.1 |
+| Ports | 8080, 8081, 8025, 9000 and 3000 free on 127.0.0.1 |
 
 The installer checks all of this first and says what is missing.
 
