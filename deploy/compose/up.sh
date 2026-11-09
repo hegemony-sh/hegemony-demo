@@ -24,6 +24,10 @@ registry_config=""
 cleanup() { [[ -z "$registry_config" ]] || rm -rf "$registry_config"; }
 trap cleanup EXIT
 
+# The caller's own DOCKER_CONFIG, put back once the temporary login is gone.
+caller_docker_config="${DOCKER_CONFIG-}"
+caller_docker_config_set="${DOCKER_CONFIG+set}"
+
 if [[ -n "${HEGEMONY_GHCR_TOKEN:-}" ]]; then
   registry_config="$(mktemp -d)"
   # Keep the CLI plugins (compose, buildx) a per-user install put there.
@@ -70,7 +74,11 @@ log "Building the demo images ..."
 
 cleanup
 registry_config=""
-unset DOCKER_CONFIG
+if [[ -n "$caller_docker_config_set" ]]; then
+  export DOCKER_CONFIG="$caller_docker_config"
+else
+  unset DOCKER_CONFIG
+fi
 
 log "Migrating the database ..."
 "$compose" run --rm --quiet-pull migrate >/dev/null
