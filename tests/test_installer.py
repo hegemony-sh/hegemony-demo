@@ -517,6 +517,29 @@ def test_up_keeps_the_recorded_checkout_on_the_next_local_build(sandbox: Sandbox
     assert _local_env(sandbox)["HEGEMONY_PLATFORM_BUILD_DIR"] == recorded
 
 
+def test_up_records_the_fallback_checkout_of_a_local_build(sandbox: Sandbox) -> None:
+    assert sandbox.run("--no-up").returncode == 0
+    _local_build_platform(sandbox)
+    sandbox.env = {k: v for k, v in sandbox.env.items() if k != "HEGEMONY_PLATFORM_DIR"}
+    _up(sandbox, HEGEMONY_PLATFORM_BUILD="local")
+    recorded = _local_env(sandbox)
+    assert recorded["HEGEMONY_PLATFORM_BUILD_DIR"] == str(sandbox.platform.resolve())
+
+
+def test_a_reinstall_keeps_the_recorded_build(sandbox: Sandbox) -> None:
+    assert sandbox.run("--no-up").returncode == 0
+    local = sandbox.checkout / "deploy/compose/.local/demo.env"
+    local.write_text(
+        local.read_text()
+        + "HEGEMONY_PLATFORM_BUILD=local\nHEGEMONY_PLATFORM_BUILD_DIR=/x/hegemony\n"
+    )
+    assert sandbox.run("--no-up").returncode == 0
+    recorded = _local_env(sandbox)
+    assert recorded["HEGEMONY_PLATFORM_BUILD"] == "local"
+    assert recorded["HEGEMONY_PLATFORM_BUILD_DIR"] == "/x/hegemony"
+    assert local.read_text().count("HEGEMONY_PLATFORM_BUILD=") == 1
+
+
 def test_up_changes_nothing_when_the_local_build_cannot_start(sandbox: Sandbox) -> None:
     assert sandbox.run("--no-up").returncode == 0
     local = sandbox.checkout / "deploy/compose/.local/demo.env"

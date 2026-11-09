@@ -42,6 +42,13 @@ if [[ "$platform_build" == local ]]; then
       || die "no platform checkout at $HEGEMONY_PLATFORM_DIR"
   else
     build_dir="$(sed -n 's/^HEGEMONY_PLATFORM_BUILD_DIR=//p' "$local_env" | tail -n 1)"
+    if [[ -z "$build_dir" ]]; then
+      # Record the checkout compose.sh would fall back to, so a later
+      # install.sh changing HEGEMONY_PLATFORM_DIR does not move this stack.
+      fallback="$(sed -n 's/^HEGEMONY_PLATFORM_DIR=//p' "$local_env" | tail -n 1 | tr -d '"')"
+      fallback="${fallback:-$compose_dir/../../../hegemony}"
+      build_dir="$(cd -- "$fallback" 2>/dev/null && pwd)" || build_dir=""
+    fi
   fi
 fi
 
@@ -53,7 +60,11 @@ HEGEMONY_PLATFORM_BUILD="$platform_build" HEGEMONY_PLATFORM_DIR="${build_dir:-${
 
 # Record the mode for compose.sh (the environment variable wins over the file),
 # and for a local build its checkout, so the later tasks use the same files.
-recorded="$(grep -vE '^HEGEMONY_PLATFORM_BUILD(_DIR)?=' "$local_env" || true)"
+# grep exits 1 when every line is a build line, 2 when it cannot read the file:
+# only the second must stop, or the passwords would be lost.
+status=0
+recorded="$(grep -vE '^HEGEMONY_PLATFORM_BUILD(_DIR)?=' "$local_env")" || status=$?
+(( status <= 1 )) || die "cannot read $local_env"
 (umask 077 && printf '%s\n' "$recorded" >"$local_env.tmp")
 if [[ "$platform_build" == local ]]; then
   echo "HEGEMONY_PLATFORM_BUILD=local" >>"$local_env.tmp"
