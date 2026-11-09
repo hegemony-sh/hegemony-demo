@@ -281,8 +281,10 @@ def build_model(spec: dict[str, Any]) -> Model:
     if len(set(usernames)) != len(usernames):
         raise SpecError("persona usernames must be unique")
 
-    profiles = {str(k): _str_map(v, f"profile {k}") for k, v in spec["profiles"].items()}
-    models = spec["models"]
+    profiles = {
+        str(k): _str_map(v, f"profile {k}") for k, v in _require(spec, "profiles", "spec").items()
+    }
+    models = _require(spec, "models", "spec")
     for role in models:
         if role not in DEVICE_ROLES:
             raise SpecError(f"models: unknown device role {role!r}")
@@ -316,8 +318,11 @@ def build_model(spec: dict[str, Any]) -> Model:
         raise SpecError("site codes must be unique")
 
     plan = _require(spec, "ip_plan", "spec")
-    management = ipaddress.IPv4Network(plan["management"])
-    loopbacks = ipaddress.IPv4Network(plan["loopbacks"])
+    try:
+        management = ipaddress.IPv4Network(_require(plan, "management", "ip_plan"))
+        loopbacks = ipaddress.IPv4Network(_require(plan, "loopbacks", "ip_plan"))
+    except ValueError as exc:
+        raise SpecError(f"ip_plan: {exc}") from None
     blocks = list(management.subnets(new_prefix=24))
 
     devices: list[Device] = []
