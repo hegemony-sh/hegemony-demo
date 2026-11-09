@@ -8,6 +8,9 @@ name: Check
 on:
   push:
   pull_request:
+  # Started by the platform-release workflow on the branch it pushes: a push
+  # made with the workflow token starts no workflow by itself.
+  workflow_dispatch:
 
 permissions:
   contents: read
