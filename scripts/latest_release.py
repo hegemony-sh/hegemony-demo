@@ -31,7 +31,6 @@ import re
 import sys
 import urllib.request
 from pathlib import Path
-from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 PLATFORM_REPO = "hegemony-sh/hegemony"
@@ -42,7 +41,7 @@ API = "https://api.github.com"
 VERSION = re.compile(r"^v?(\d+)\.(\d+)\.(\d+)(?:-rc\.(\d+))?$")
 
 
-def pick_latest(releases: list[dict[str, Any]]) -> str:
+def pick_latest(releases: list[dict]) -> str:
     """The most recently published release, as X.Y.Z[-rc.N]."""
     candidates = [
         r
@@ -52,11 +51,10 @@ def pick_latest(releases: list[dict[str, Any]]) -> str:
     if not candidates:
         raise LookupError(f"{PLATFORM_REPO} has no published release")
     # ISO 8601 UTC timestamps from GitHub sort as text.
-    latest: str = max(candidates, key=lambda r: r["published_at"])["tag_name"]
-    return latest.removeprefix("v")
+    return max(candidates, key=lambda r: r["published_at"])["tag_name"].removeprefix("v")
 
 
-def wheel_pair(release: dict[str, Any], prefix: str) -> str:
+def wheel_pair(release: dict, prefix: str) -> str:
     """'<sha256>@<url>' for the one wheel in a release whose name starts with prefix."""
     assets = [a for a in release.get("assets", []) if a["name"].startswith(prefix)]
     assets = [a for a in assets if a["name"].endswith(".whl")]
@@ -97,8 +95,7 @@ def _get(path: str, accept: str = "application/vnd.github+json") -> bytes:
     if token:
         request.add_header("Authorization", f"Bearer {token}")
     with urllib.request.urlopen(request, timeout=30) as response:  # noqa: S310 - fixed https host
-        body: bytes = response.read()
-        return body
+        return response.read()
 
 
 def resolve() -> tuple[str, str]:

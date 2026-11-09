@@ -12,7 +12,6 @@ import json
 import sys
 from pathlib import Path
 from types import ModuleType
-from typing import Any
 
 import pytest
 
@@ -39,16 +38,12 @@ lr = _load()
 
 
 def _release(
-    tag: str,
-    at: str = "2026-01-01T00:00:00Z",
-    *,
-    draft: bool = False,
-    assets: list[dict[str, Any]] | None = None,
-) -> dict[str, Any]:
+    tag: str, at: str = "2026-01-01T00:00:00Z", *, draft: bool = False, assets: list | None = None
+) -> dict:
     return {"tag_name": tag, "published_at": at, "draft": draft, "assets": assets or []}
 
 
-def _asset(name: str, url: str = WHEEL_URL, digest: str = f"sha256:{SHA}") -> dict[str, Any]:
+def _asset(name: str, url: str = WHEEL_URL, digest: str = f"sha256:{SHA}") -> dict:
     return {"name": name, "browser_download_url": url, "digest": digest}
 
 
@@ -98,7 +93,7 @@ def test_the_wheel_comes_with_its_published_digest() -> None:
         ],
     ],
 )
-def test_a_missing_ambiguous_or_unhashed_wheel_is_refused(assets: list[dict[str, Any]]) -> None:
+def test_a_missing_ambiguous_or_unhashed_wheel_is_refused(assets: list[dict]) -> None:
     with pytest.raises(LookupError):
         lr.wheel_pair(_release("v0.6.0", assets=assets), "hegemony_inventory_git-")
 

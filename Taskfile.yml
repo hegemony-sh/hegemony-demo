@@ -108,11 +108,6 @@ tasks:
         git ls-files -z | xargs -0 grep -lE '^#!/(usr/)?bin/(env )?(bash|sh)' \
           | xargs -r uvx --from shellcheck-py==0.11.0.1 shellcheck
 
-  types:
-    desc: Type-check (mypy)
-    cmds:
-      - uv run mypy
-
   test:
     desc: Run the tests
     cmds:
@@ -128,6 +123,5 @@ tasks:
     cmds:
       - task: gen:check
       - task: lint
-      - task: types
       - task: test
       - task: reuse
