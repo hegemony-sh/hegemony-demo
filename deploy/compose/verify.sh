@@ -29,13 +29,21 @@ answers() { curl -fsS --max-time 10 -o /dev/null "$1" 2>/dev/null; }
 
 # Long-running services must run, and be healthy where they have a check; the
 # one-shot setup services (migrate, seeds, init) must have exited 0.
+# A container that exited 0 is fine only if it runs once (restart: "no"); a
+# long-running one (restart: unless-stopped) that stopped cannot do its work.
 services="$(
-  { "$compose" ps -a --format '{{.Service}} {{.State}} {{.Health}} {{.ExitCode}}'
-    "$lab_dir/lab.sh" ps -a --format 'lab/{{.Service}} {{.State}} {{.Health}} {{.ExitCode}}'
+  { "$compose" ps -a --format '{{.Service}} {{.State}} {{.Health}} {{.ExitCode}} {{.ID}}'
+    "$lab_dir/lab.sh" ps -a --format 'lab/{{.Service}} {{.State}} {{.Health}} {{.ExitCode}} {{.ID}}'
   } 2>/dev/null | sort
 )"
-bad="$(awk '($2 == "exited" && $NF != 0) || $2 == "restarting" || $2 == "dead" || $3 == "unhealthy" \
-  { print $1 }' <<<"$services" | paste -sd ' ' -)"
+bad="$(awk '($2 == "exited" && $(NF-1) != 0) || $2 == "restarting" || $2 == "dead" \
+  || $3 == "unhealthy" { print $1 }' <<<"$services")"
+while read -r name id; do
+  [[ -n "$id" ]] || continue
+  policy="$(docker inspect --format '{{.HostConfig.RestartPolicy.Name}}' "$id" 2>/dev/null || true)"
+  [[ "$policy" == no ]] || bad+=$'\n'"$name"
+done < <(awk '$2 == "exited" && $(NF-1) == 0 { print $1, $NF }' <<<"$services")
+bad="$(sed '/^$/d' <<<"$bad" | paste -sd ' ' -)"
 if [[ -z "$services" ]]; then
   result FAIL "services" "none found; is the demo started?"
 elif [[ -n "$bad" ]]; then
