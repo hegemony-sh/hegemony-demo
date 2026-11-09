@@ -489,6 +489,24 @@ def inventory_documents(model: Model) -> dict[str, dict[str, Any] | None]:
     return documents
 
 
+def _same(actual: Any, expected: Any) -> bool:
+    """Equal as data, type for type: `1` is not `true`, and `1.0` is not `1`.
+
+    Mappings compare by key, whatever their order; lists compare item by item.
+    """
+    if type(actual) is not type(expected):
+        return False
+    if isinstance(expected, dict):
+        return actual.keys() == expected.keys() and all(
+            _same(actual[key], value) for key, value in expected.items()
+        )
+    if isinstance(expected, list):
+        return len(actual) == len(expected) and all(
+            _same(a, e) for a, e in zip(actual, expected, strict=True)
+        )
+    return actual == expected
+
+
 def check_inventory(model: Model, tree: Path) -> list[str]:
     """What differs between an inventory tree and what the spec expects.
 
@@ -511,7 +529,7 @@ def check_inventory(model: Model, tree: Path) -> list[str]:
             except (yaml.YAMLError, OSError, UnicodeError) as exc:
                 problems.append(f"unreadable: {path}: {exc}")
                 continue
-            if actual != document:
+            if not _same(actual, document):
                 problems.append(f"differs: {path}")
     problems.extend(f"extra:   {p}" for p in sorted(found - set(expected)))
     return problems

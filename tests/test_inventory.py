@@ -66,6 +66,22 @@ def test_a_drifted_tree_names_every_difference(tmp_path: Path) -> None:
     assert demo_gen(["--root", str(ROOT), "--check-inventory", str(tmp_path)]) == 1
 
 
+def test_a_value_of_another_type_is_a_difference(tmp_path: Path) -> None:
+    # YAML 1 equals True in Python; the check must still see the change.
+    _write_expected(tmp_path)
+    for record_file in sorted((tmp_path / "objects").rglob("*.yaml")):
+        record = yaml.safe_load(record_file.read_text())
+        flags = [k for k, v in record.get("attributes", {}).items() if isinstance(v, bool)]
+        if flags:
+            record["attributes"][flags[0]] = int(record["attributes"][flags[0]])
+            record_file.write_text(dump_yaml(record))
+            break
+    else:
+        raise AssertionError("no boolean attribute in the expected records")
+    rel = record_file.relative_to(tmp_path).as_posix()
+    assert check_inventory(_model(), tmp_path) == [f"differs: {rel}"]
+
+
 def test_a_missing_tree_fails(tmp_path: Path) -> None:
     assert check_inventory(_model(), tmp_path / "nowhere") == [f"missing: {tmp_path / 'nowhere'}"]
 
@@ -120,7 +136,26 @@ def test_fetch_copies_the_tagged_tree_where_the_seed_reads_it(tmp_path: Path) ->
 def test_fetch_refuses_a_tag_without_an_inventory(tmp_path: Path) -> None:
     result = _fetch(tmp_path, _inventory_repo(tmp_path, tree=False))
     assert result.returncode != 0
-    assert "has no inventory/sites/" in result.stderr
+    assert "has no site record under inventory/sites/" in result.stderr
+
+
+def test_fetch_refuses_a_tag_with_only_a_placeholder(tmp_path: Path) -> None:
+    repo = _inventory_repo(tmp_path, tree=False)
+    (repo / "inventory" / "sites").mkdir(parents=True)
+    (repo / "inventory" / "sites" / ".gitkeep").write_text("")
+    _git(repo, "add", "-A")
+    _git(repo, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-qm", "y")
+    _git(repo, "tag", "-f", "v2000.01.01")
+    result = _fetch(tmp_path, repo)
+    assert result.returncode != 0
+    assert "has no site record under inventory/sites/" in result.stderr
+    assert not (tmp_path / "demo" / "deploy" / "lab" / "inventory").exists()
+
+
+def test_the_seed_refuses_a_tree_without_a_site_record() -> None:
+    seed = (ROOT / "deploy" / "lab" / "gitea" / "seed.sh").read_text()
+    assert "/seed/inventory/sites/*/*.yaml" in seed
+    assert seed.index("no site record") < seed.index("rm -rf inventory")
 
 
 def test_the_lab_seeds_gitea_from_the_fetched_tree() -> None:

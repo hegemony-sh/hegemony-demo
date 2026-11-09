@@ -48,9 +48,14 @@ done
 
 # The inventory: the pinned tree under inventory/, committed only when it changed.
 # deploy/lab/fetch-inventory.sh puts it there; without it, Docker mounts an
-# empty folder, which must not empty the repository.
-if [ ! -d /seed/inventory/sites ]; then
-  echo "gitea-seed: no inventory in /seed/inventory; run deploy/lab/fetch-inventory.sh" >&2
+# empty folder, which must not empty the repository. A tree without a single
+# site record (only a placeholder, say) is refused for the same reason.
+has_site=""
+for site in /seed/inventory/sites/*/*.yaml; do
+  [ -f "$site" ] && has_site=1 && break
+done
+if [ -z "$has_site" ]; then
+  echo "gitea-seed: no site record in /seed/inventory/sites; run deploy/lab/fetch-inventory.sh" >&2
   exit 1
 fi
 work="$(mktemp -d)"

@@ -37,7 +37,10 @@ work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 git -c advice.detachedHead=false clone -q --depth 1 --branch "$ref" "$repo" "$work/repo" \
   || die "download failed: $repo $ref"
-[[ -d "$work/repo/inventory/sites" ]] || die "$repo $ref has no inventory/sites/"
+# At least one site record: a tree with only a placeholder would empty the
+# lab's inventory repository when the seed replaces it.
+sites=("$work/repo/inventory/sites"/*/*.yaml)
+[[ -f "${sites[0]}" ]] || die "$repo $ref has no site record under inventory/sites/"
 rm -rf "$out"
 cp -R "$work/repo/inventory" "$out"
 printf '%s %s\n' "$repo" "$ref" >"$source_file"
