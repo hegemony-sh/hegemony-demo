@@ -32,7 +32,7 @@ Then:
 
 1. Edit `spec/basic.yaml`, a story under `stories/`, or the generator.
 2. Regenerate: `uv run demo-gen`.
-3. Check: `task check` (or the commands it runs, listed in `Taskfile.yml`).
+3. Check: `task ci` (or the commands it runs, listed in `Taskfile.yml`).
 4. Commit the source change and the regenerated `dist/` and `docs/_generated/`
    together.
 
