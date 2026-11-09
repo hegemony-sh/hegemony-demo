@@ -9,7 +9,8 @@ edge routers, settles briefly, then watches reachability alongside an
 approval with a deadline. The walkthrough restarts the workers while the run
 waits at the approval: that wait (and its deadline timer) is workflow state,
 so the run carries on. The settle step is a plain step that runs inside a
-worker; a restart during it starts it again, so it is kept short.
+worker; a restart during it starts it again, so it is kept short. A drain
+that fails on one router is undone on all of them before the run fails.
 #]
 [%- set edges = devices("edge", live=True) %]
 flows:
@@ -55,6 +56,34 @@ flows:
               timeout_sec: 120
               retries: 0
               on_failure: FAIL_RUN
+              evidence_required: false
+          # A drain that fails on one router may already have drained another:
+          # put every router back, as far as it goes, before the run fails.
+          - id: undo_drain
+            name: Undo the drain
+            type: step
+            handler: netcli.execute
+            tags:
+              phase: IMPLEMENTATION
+            port_anchors:
+              in: N
+              failure: S
+              success: E
+            position_x: 195
+            position_y: 450
+            target_selectors:
+              - type: role
+                role: window_targets
+            params:
+              commands:
+                - configure terminal
+                - router ospf
+                - no max-metric router-lsa administrative
+                - end
+            policy:
+              timeout_sec: 120
+              retries: 1
+              on_failure: CONTINUE
               evidence_required: false
           - id: settle
             name: Let traffic settle
@@ -201,6 +230,10 @@ flows:
           - source: drain:success
             target: settle
           - source: drain:failure
+            target: undo_drain
+          - source: undo_drain:success
+            target: failed
+          - source: undo_drain:failure
             target: failed
           - source: settle:success
             target: fork
