@@ -1,0 +1,85 @@
+[#
+SPDX-FileCopyrightText: 2026 Rexonix s.r.o.
+SPDX-FileContributor: Jakub Trávník <jakub.travnik@gmail.com>
+
+SPDX-License-Identifier: AGPL-3.0-or-later
+
+S3 "One standard, many cities". ONE flow, owned by the shared standards
+organization, which every city runs from its own organization. A run sees
+the city's variables first and the shared organization's after them, so each
+city's report shows its effective standards. Each city's admin sees only that
+city; the auditor sees all of them and changes nothing. The flow has no
+device targets: the shared organization owns no devices.
+#]
+flows:
+  - name: Standards check
+    description: >-
+      Report the effective network standards of the organization that runs
+      it: its own settings where it has them, the shared standards everywhere
+      else. Owned by the shared standards organization; every city runs it.
+    tags:
+      story: s3
+    definition:
+      graph:
+        nodes:
+          - id: start
+            name: Start
+            type: start
+            position_x: 0
+            position_y: 120
+          - id: render
+            name: Render the effective standards
+            type: step
+            handler: container.run
+            position_x: 195
+            position_y: 105
+            mounted_files:
+              - report.sh
+            params:
+              # Docker's official Alpine, from the ECR Public mirror: the sandbox
+              # engine pulls anonymously, and Docker Hub rate limits that.
+              image: public.ecr.aws/docker/library/alpine:3.22
+              working_dir: /workspace
+              timeout_seconds: 120
+              command:
+                - sh /attachments/report.sh
+              # Values reach the script only as environment variables, never
+              # spliced into its text.
+              env:
+                ORG_NAME: "{{ vars.ORG_NAME }}"
+                STANDARDS_OWNER: "{{ vars.STANDARDS_OWNER }}"
+                NTP_PRIMARY: "{{ vars.NTP_PRIMARY }}"
+                DNS_PRIMARY: "{{ vars.DNS_PRIMARY }}"
+                SYSLOG_PRIMARY: "{{ vars.SYSLOG_PRIMARY }}"
+            policy:
+              timeout_sec: 150
+              retries: 0
+              on_failure: FAIL_RUN
+              evidence_required: true
+          - id: done
+            name: Standards reported
+            type: terminal
+            terminal_status: success
+            position_x: 615
+            position_y: 75
+          - id: failure
+            name: Failure
+            position_x: 615
+            position_y: 165
+            terminal_status: failure
+            type: terminal
+        edges:
+          - source: start:start
+            target: render
+          - source: render:success
+            target: done
+          - source: render:failure
+            target: failure
+      form:
+        nodes: []
+        edges: []
+
+flow_attachments:
+  - flow: Standards check
+    filename: report.sh
+    source: report.sh

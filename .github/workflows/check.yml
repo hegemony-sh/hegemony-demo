@@ -1,0 +1,169 @@
+# SPDX-FileCopyrightText: 2026 Rexonix s.r.o.
+# SPDX-FileContributor: Jakub Trávník <jakub.travnik@gmail.com>
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+name: Check
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.12"
+  PYTHONDONTWRITEBYTECODE: "1"
+  UV_VERSION: "0.9.28"
+
+# Every job runs on a GitHub-hosted runner. This repository is public and
+# `pull_request` runs the workflow file a fork's pull request carries, so a
+# self-hosted runner here would run a stranger's code on our host.
+
+jobs:
+  commit-lint:
+    name: Commit messages
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: read # wagoid/commitlint-github-action reads the PR commits
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: wagoid/commitlint-github-action@b948419dd99f3fd78a6548d48f94e3df7f6bf3ed # v6
+        with:
+          configFile: .commitlintrc.yaml
+
+  security-scans:
+    name: Security scans (gitleaks, zizmor)
+    if: ${{ !github.event.deleted }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098 # v7
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: false
+      # A release binary checked against the digest the gitleaks project
+      # publishes with it.
+      - name: Install gitleaks
+        env:
+          GITLEAKS_VERSION: "8.21.2"
+          GITLEAKS_SHA256: 5bc41815076e6ed6ef8fbecc9d9b75bcae31f39029ceb55da08086315316e3ba
+        run: |
+          archive="$RUNNER_TEMP/gitleaks.tar.gz"
+          curl -sSfL -o "$archive" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  ${archive}" | sha256sum -c -
+          tar -xzf "$archive" -C "$RUNNER_TEMP" gitleaks
+      # The commits this pull request or push adds. A push that creates a
+      # branch reports an all-zero `before`: then every reachable commit is
+      # new and is scanned.
+      - name: Scan the new commits for secrets (gitleaks)
+        env:
+          RANGE_START: ${{ github.event.pull_request.base.sha || github.event.before }}
+          RANGE_END: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          if [ -z "${RANGE_START//0/}" ] || ! git cat-file -e "$RANGE_START^{commit}" 2>/dev/null; then
+            log_opts="$RANGE_END"
+          else
+            log_opts="$RANGE_START..$RANGE_END"
+          fi
+          "$RUNNER_TEMP/gitleaks" git --log-opts="$log_opts" --redact --no-banner .
+      - name: GitHub Actions policy scan (zizmor)
+        run: uvx zizmor@1.26.1 --offline --config .github/zizmor.yml .github/workflows
+
+  lint:
+    name: Lint (ruff, typos)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098 # v7
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: false
+      - run: uv sync --frozen --python "$PYTHON_VERSION"
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uvx typos@1.42.1
+
+  types:
+    name: Types (mypy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098 # v7
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: false
+      - run: uv sync --frozen --python "$PYTHON_VERSION"
+      - run: uv run mypy
+
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098 # v7
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: false
+      - run: uv sync --frozen --python "$PYTHON_VERSION"
+      # dist/ and docs/_generated/ must be exactly what the generator writes.
+      - run: uv run demo-gen --check
+      - run: uv run pytest
+
+  reuse:
+    name: Licensing (REUSE)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098 # v7
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: false
+      - run: uv sync --frozen --python "$PYTHON_VERSION"
+      - run: uv run reuse lint
+
+  shellcheck:
+    name: Shell scripts (shellcheck)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098 # v7
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: false
+      # Every tracked shell script, found by shebang, so a new one cannot be
+      # missed. A pinned shellcheck (the shellcheck-py wheel).
+      - name: shellcheck
+        run: |
+          mapfile -t scripts < <(git ls-files -z | xargs -0 grep -lE '^#!/(usr/)?bin/(env )?(bash|sh)' || true)
+          if [ "${#scripts[@]}" -eq 0 ]; then
+            echo "no shell scripts"
+            exit 0
+          fi
+          printf '%s\n' "${scripts[@]}"
+          uvx --from shellcheck-py==0.11.0.1 shellcheck "${scripts[@]}"

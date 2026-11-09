@@ -1,0 +1,87 @@
+# SPDX-FileCopyrightText: 2026 Rexonix s.r.o.
+# SPDX-FileContributor: Jakub Trávník <jakub.travnik@gmail.com>
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+# Publish a demo release when a tag is pushed.
+#
+# Tags follow the platform release the demo runs: v1.0.0 runs platform 1.0.0,
+# v1.0.0+demo.2 is a later demo-only fix for it. Before tagging:
+#   1. platform.env names the newest published platform release and the
+#      plugin wheels it was built with (`python3 scripts/latest_release.py
+#      write`; the verify job refuses anything older);
+#   2. the E2E workflow passed on that commit.
+# The release carries install.sh, stamped with the tag so it installs exactly
+# this release, and SHA256SUMS. hegemony.sh/install.sh serves the newest
+# release's install.sh.
+
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PYTHONDONTWRITEBYTECODE: "1"
+  UV_VERSION: "0.9.28"
+
+jobs:
+  verify:
+    name: Verify the tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098 # v7
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: false
+      - run: uv sync --frozen --python 3.12
+      - name: The tag matches the platform pin and the spec
+        env:
+          TAG: ${{ github.ref_name }}
+        run: uv run python scripts/release_check.py "$TAG"
+      - name: The pins are the newest published releases
+        env:
+          HEGEMONY_GITHUB_TOKEN: ${{ secrets.REPOS_READ_TOKEN }}
+        run: python3 scripts/latest_release.py check
+      - run: uv run demo-gen --check
+      - run: uv run pytest
+
+  publish:
+    name: Publish the release
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the release and upload its assets
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+      - name: Stamp the installer with the tag
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          mkdir -p release
+          sed "s/^INSTALLER_VERSION=main\$/INSTALLER_VERSION=$TAG/" install.sh > release/install.sh
+          grep -qx "INSTALLER_VERSION=$TAG" release/install.sh
+          sh release/install.sh --version | grep -qx "$TAG"
+          (cd release && sha256sum install.sh > SHA256SUMS)
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          prerelease=""
+          case "$TAG" in *-rc.*) prerelease="--prerelease" ;; esac
+          gh release create "$TAG" release/install.sh release/SHA256SUMS \
+            --repo "$GITHUB_REPOSITORY" --title "$TAG" --verify-tag $prerelease \
+            --notes "Hegemony demo $TAG. Install: curl -fsSL https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/install.sh | sh"

@@ -1,0 +1,108 @@
+# SPDX-FileCopyrightText: 2026 Rexonix s.r.o.
+# SPDX-FileContributor: Jakub Trávník <jakub.travnik@gmail.com>
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# The demo's layer over the platform's Compose files: the generated Keycloak
+# realm, the generated bundles mounted for instance bootstrap, and api/worker
+# images that add the demo's plugin wheels to the released platform images.
+# compose.sh puts it after the platform's prod, auth, s3, openbao-internal and
+# dind files.
+#
+# The lab (routers, servers, Gitea, Mailpit) is its own Compose project,
+# `hegemony-lab` (deploy/lab/). The api (Git repositories), the worker (SSH,
+# HTTP, mail) and the sandbox (container steps) join its management network,
+# and that network is the only thing the two projects share.
+
+name: hegemony-demo
+
+# Docker Desktop hands the socket to containers with a group the image does not
+# know. Start as root, join the socket's group, then drop to appuser.
+x-demo-user: &demo-user
+  user: root
+  entrypoint:
+    - /bin/sh
+    - -ec
+    - |
+      if [ -S /var/run/docker.sock ]; then
+        SUPP_GROUPS="--groups $(stat -c %g /var/run/docker.sock)"
+      else
+        SUPP_GROUPS="--init-groups"
+      fi
+      exec setpriv --reuid appuser --regid appuser $$SUPP_GROUPS \
+        env HOME=/home/appuser "$@"
+    - demo-user
+
+services:
+  keycloak:
+    environment:
+      # Resolved by Keycloak inside the realm file at import (the users'
+      # password placeholder). Import happens once, into an empty database.
+      HEGEMONY_DEMO_PASSWORD: ${HEGEMONY_DEMO_PASSWORD:?HEGEMONY_DEMO_PASSWORD is required; run install.sh}
+    volumes:
+      - ${HEGEMONY_DEMO_ROOT:?}/dist/keycloak/realm.json:/opt/keycloak/data/import/realm-export.json:ro
+
+  keycloak-init:
+    environment:
+      # Every user the realm ships, from dist/demo.env (generated).
+      KEYCLOAK_IMPORTED_USERS: ${KEYCLOAK_IMPORTED_USERS:?}
+
+  api:
+    <<: *demo-user
+    image: hegemony-demo-api:${HEGEMONY_IMAGE_TAG:?HEGEMONY_IMAGE_TAG is required}
+    pull_policy: never
+    build:
+      context: ${HEGEMONY_DEMO_ROOT:?}/deploy/compose/plugin-wheels
+      dockerfile: ${HEGEMONY_DEMO_ROOT:?}/deploy/compose/Dockerfile.plugins
+      args:
+        BASE_IMAGE: ghcr.io/hegemony-sh/hegemony/api:${HEGEMONY_IMAGE_TAG:?HEGEMONY_IMAGE_TAG is required}
+    command: ["python", "-m", "apps.api.run"]
+    # The first start imports every bundle and syncs the inventory providers
+    # before /ready answers. Failures inside start_period do not count.
+    healthcheck:
+      start_period: 300s
+    environment:
+      HEGEMONY_BOOTSTRAP_ENABLED: ${HEGEMONY_BOOTSTRAP_ENABLED:-true}
+      HEGEMONY_BOOTSTRAP_DIR: /bootstrap
+      HEGEMONY_BOOTSTRAP_ENABLE_SCHEDULES: ${HEGEMONY_BOOTSTRAP_ENABLE_SCHEDULES:-false}
+    volumes:
+      - ${HEGEMONY_DEMO_ROOT:?}/dist/bundles:/bootstrap:ro
+    networks:
+      default: {}
+      lab: {}
+
+  worker:
+    <<: *demo-user
+    image: hegemony-demo-worker:${HEGEMONY_IMAGE_TAG:?HEGEMONY_IMAGE_TAG is required}
+    pull_policy: never
+    build:
+      context: ${HEGEMONY_DEMO_ROOT:?}/deploy/compose/plugin-wheels
+      dockerfile: ${HEGEMONY_DEMO_ROOT:?}/deploy/compose/Dockerfile.plugins
+      args:
+        BASE_IMAGE: ghcr.io/hegemony-sh/hegemony/worker:${HEGEMONY_IMAGE_TAG:?HEGEMONY_IMAGE_TAG is required}
+    command: ["python", "-m", "apps.worker.run"]
+    environment:
+      # Flow containers are labelled with this, so a reset removes exactly
+      # the demo's own.
+      HEGEMONY_STACK_NAME: ${HEGEMONY_STACK_NAME:-hegemony-demo}
+    networks:
+      default: {}
+      lab: {}
+
+  # Container steps (Ansible, OpenTofu, the standards check) run here and reach
+  # the lab through it.
+  dind:
+    networks:
+      lab: {}
+
+  # The bundled OpenBao's web UI is off in production; the demo serves it,
+  # but publishes nothing: the platform's on-demand relay opens it.
+  openbao:
+    environment:
+      BAO_UI: "true"
+
+networks:
+  # Created by the lab (dist/lab/compose.yml), which starts first.
+  lab:
+    name: hegemony-lab-mgmt
+    external: true

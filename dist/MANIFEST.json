@@ -1,0 +1,29 @@
+{
+  "files": {
+    "dist/bundles/00-organizations.yaml": "ebb129cb9e079a469168542e76b73cc2c62246ffb4b36f3299ad4a78a8eae142",
+    "dist/bundles/10-default.yaml": "f5672510eec08730239ce4c772ac09b83db9fa8f5001f2ae8ad238a059b826e5",
+    "dist/bundles/20-shared.yaml": "e0108ad6518d3a71beac12ee850a2974ed265c0fd0703275fe8d9922c5da2767",
+    "dist/bundles/30-athens.yaml": "17470c069de559b8812e7d559ad53947f0a22b1a8fae73f4e092e7c4f20c3616",
+    "dist/bundles/40-sparta.yaml": "fe1fad4641db9b55726c63036f514abe69b41795594928c6ee283adee7d4c17a",
+    "dist/demo.env": "38c6fd2347ec7efafbf06ed318e8ae199215be65ef6308392a377edeec8fa949",
+    "dist/inventory/devices/oly1-core-01.yaml": "3153163d3dbb36f41982e47a80b882a51f3dd00a1c4fb599ed8a4570f7b93370",
+    "dist/inventory/devices/oly1-edge-01.yaml": "f7fc4af164a9c7df952ce29004bae5d4a0d0f9f41469a91c00b1da14f65e9e0f",
+    "dist/inventory/object-types/demo.service.yaml": "0521c4372ad402489545f3e9101a19cc7680bf1ab5a24acd6d4d7d5d149c7467",
+    "dist/inventory/object-types/demo.service_address.yaml": "ab2b458d88e9e3c2417c1c030e5f5c6b41fb8e60ac8482facbb75a06aefc4306",
+    "dist/inventory/objects/demo.service/portal.yaml": "0999f2b65606cdc2fa62a00e99b038e3e77a29f6beaf0cdddc8eeca814db1aca",
+    "dist/inventory/objects/demo.service_address/portal-primary.yaml": "8347fc8ae230dc1b2b1b6ac42a7f8aa5dbd2caa929615cc03e145518ed5cb864",
+    "dist/inventory/objects/demo.service_address/portal-replacement.yaml": "338d208e0f808d1b3ca7bcff27c27315f33e46e9691f47b6c1a2ed8c96798918",
+    "dist/inventory/sites/oly1/oly1.yaml": "d73fcafe977ce54e512982fd33d0e4ada87e26d06c38cb87c488e68e87c6f3c1",
+    "dist/keycloak/realm.json": "e5836d36b9bf9009962395b863252099c86147b70668e15e32a779056d65aa76",
+    "dist/lab/checks.txt": "70728c2f59e3bb0e9b3776280f1f7e7691109c579c1259985b6eaa7bb837f990",
+    "dist/lab/compose.yml": "e48fbb736f89de45a6b22ed0c1e219cad45adbe9c84222f922765c0b5dffc7f0",
+    "dist/lab/frr/ath1-edge-01.conf": "fed18b2a68b6f8c851fe452781263bd6f729338b9bc00e3fc2bd1b5725dcdad1",
+    "dist/lab/frr/dlp1-core-01.conf": "13b6a4cec24dc92dfea57faf806092110b51e7e5e26c0b92f4086ceababd858d",
+    "dist/lab/frr/dlp1-edge-01.conf": "1d68e4213e7fcda431f8d131740b4fc131531cdf8160cb02c3f19ea145154726",
+    "dist/lab/frr/dlp1-edge-02.conf": "5f93a7b424a682bf2113d67f51f585bda62d9a43533ffbb73a69edf7e32cabda",
+    "dist/lab/frr/hermes-isp.conf": "1e862664f2ddf7d922c1ab6b516083b7fc54339cf900469970267fc2aa5147b5",
+    "dist/lab/frr/spa1-edge-01.conf": "2a8743df258d0d48e51d3e0c6b93ab819aaaa6d0bf5c797e7173480eb09d521d",
+    "dist/logins.txt": "0805674fa3c9a4a2e0e3f99f9001df4069c8bb14291b6f7ee88056c253d65efa",
+    "dist/summary.json": "8fc2e8afe59d3b357cf6194fa9ae94dd057800e064435b8f5dbffc0689005c8e"
+  }
+}

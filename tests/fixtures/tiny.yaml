@@ -1,0 +1,38 @@
+# SPDX-FileCopyrightText: 2026 Rexonix s.r.o.
+# SPDX-FileContributor: Jakub Trávník <jakub.travnik@gmail.com>
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+# The smallest useful spec: an operator, one tenant, one site.
+spec_version: 1
+id: tiny
+theme: {operator: Example Operator, domain: operator.example, region_root: Root}
+orgs:
+  - {slug: default, name: Example Operator, region: North}
+  - {slug: tenant, name: Example Tenant, region: South}
+groups:
+  /Ops: {default: operator}
+  /Tenant-Admins: {tenant: admin}
+personas:
+  - {username: ops, persona: Ops, role: operator, groups: [/Ops]}
+  - {username: tenant-admin, persona: Admin, role: viewer, groups: [/Tenant-Admins]}
+profiles:
+  pair: {edge: 2}
+models:
+  edge: {vendor: Vendor, model: Model, platform: ios-xe}
+sites:
+  - {code: abc1, name: Alpha, org: default, group: datacenter, status: active, profile: pair}
+lab:
+  management: 172.28.103.0/24
+  link_pool: 10.255.1.0/24
+  asn: 65010
+  upstream: {name: isp, asn: 64500, prefix: 198.51.100.0/24}
+  service_prefixes: 10.255.100.0/24
+  routers: [abc1-edge-01, abc1-edge-02]
+  services: 10.90.0.0/24
+  services_router: abc1-edge-02
+  links:
+    - [isp, abc1-edge-01]
+    - [abc1-edge-01, abc1-edge-02]
+ip_plan: {management: 10.90.0.0/16, loopbacks: 10.255.0.0/24}
+stories: []

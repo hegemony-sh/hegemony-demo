@@ -1,0 +1,12 @@
+Amphictyon Networks demo logins (http://localhost:8080)
+
+Every user has the same password, generated on your machine by install.sh.
+Read it with: task password   (or: cat deploy/compose/.local/demo.env)
+
+  admin         Zeus      Runs the whole platform.
+  engineer      Daedalus  The builder. Edits flows and standards.
+  noc           Argus     The hundred-eyed watcher. Runs flows, cannot approve them.
+  approver      Themis    Law and order. Approves or rejects changes.
+  auditor       Clio      Muse of history. Reads everything, changes nothing.
+  athens-admin  Pericles  Runs Athens. Sees Athens and the shared standards only.
+  sparta-admin  Leonidas  Runs Sparta. Sees Sparta and the shared standards only.

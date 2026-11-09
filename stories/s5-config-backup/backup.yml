@@ -1,0 +1,89 @@
+# SPDX-FileCopyrightText: 2026 Rexonix s.r.o.
+# SPDX-FileContributor: Jakub Trávník <jakub.travnik@gmail.com>
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Back up the routers' running configuration into Git, one file per router,
+# and commit only when something changed: the repository's history is the
+# record of every change to the network. The flow's "Back up to Git" step
+# runs it; the inventory comes from the flow's targets and each router's
+# login from Hegemony, the Git login from a Hegemony secret.
+
+- name: Read the running configuration
+  hosts: all
+  gather_facts: false
+  vars:
+    # The lab's routers run FRR, whose SSH login shell is vtysh: plain SSH
+    # runs the command there and returns its output.
+    ansible_connection: ansible.builtin.ssh
+  tasks:
+    - name: Show the running configuration
+      ansible.builtin.raw: show running-config
+      register: running
+      changed_when: false
+
+- name: Commit the configurations to Git
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    workdir: "{{ lookup('ansible.builtin.env', 'HOME') }}/config-backups"
+    # The credentials go into the remote URL only for the commands that use
+    # it, which log nothing (no_log).
+    remote: "{{ git_url | regex_replace('^(https?://)', '\\1' ~ (git_username | urlencode) ~ ':' ~ (git_password | urlencode) ~ '@') }}"
+  tasks:
+    - name: Clone the backup repository
+      ansible.builtin.command:
+        argv: [git, clone, --quiet, "{{ remote }}", "{{ workdir }}"]
+      changed_when: false
+      no_log: true
+
+    - name: Make the routers folder
+      ansible.builtin.file:
+        path: "{{ workdir }}/routers"
+        state: directory
+        mode: "0755"
+
+    - name: Write one file per router
+      ansible.builtin.copy:
+        dest: "{{ workdir }}/routers/{{ item }}.cfg"
+        content: "{{ hostvars[item].running.stdout | regex_replace('\\r', '') | trim }}\n"
+        mode: "0644"
+      loop: "{{ groups['all'] | sort }}"
+
+    - name: Stage the changes
+      ansible.builtin.command:
+        argv: [git, -C, "{{ workdir }}", add, --all]
+      changed_when: false
+
+    - name: List what changed
+      ansible.builtin.command:
+        argv: [git, -C, "{{ workdir }}", diff, --cached, --stat]
+      register: changes
+      changed_when: changes.stdout | length > 0
+
+    - name: Commit
+      ansible.builtin.command:
+        argv:
+          - git
+          - -C
+          - "{{ workdir }}"
+          - -c
+          - user.name=Hegemony
+          - -c
+          - user.email=hegemony@lab.example
+          - commit
+          - --quiet
+          - --message
+          - "{{ commit_message }}"
+      when: changes.stdout | length > 0
+
+    - name: Push
+      ansible.builtin.command:
+        argv: [git, -C, "{{ workdir }}", push, --quiet, origin, HEAD]
+      when: changes.stdout | length > 0
+      no_log: true
+
+    - name: Report
+      ansible.builtin.debug:
+        msg: "{{ changes.stdout if changes.stdout else 'No configuration changed since the last backup.' }}"

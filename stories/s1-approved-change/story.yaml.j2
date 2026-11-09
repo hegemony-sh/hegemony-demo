@@ -1,0 +1,365 @@
+[#
+SPDX-FileCopyrightText: 2026 Rexonix s.r.o.
+SPDX-FileContributor: Jakub Trávník <jakub.travnik@gmail.com>
+
+SPDX-License-Identifier: AGPL-3.0-or-later
+
+S1 "Change with a second pair of eyes". The operator's NOC asks for a change;
+only an approver can let it through. Evidence before and after, separate
+changed and no-change outcomes, and mail at every turn.
+#]
+[%- set edges = devices("edge", live=True) %]
+[%- set cores = devices("core", live=True) %]
+flows:
+  - name: Announce service prefix
+    description: >-
+      Advertise a service address on the edge routers after approval. Collects
+      the running configuration before and after the change, fails unless the
+      change shows up in the comparison, and checks that the core router
+      learned the new route.
+    tags:
+      story: s1
+    definition:
+      # The flow changes routing on live routers: one run at a time, and a
+      # minute's pause before the next, so a repeated request cannot race.
+      run_limits:
+        max_concurrent_runs: 1
+        cooldown_seconds: 60
+      graph:
+        nodes:
+          - id: start
+            name: Start
+            type: start
+            position_x: -15
+            position_y: 165
+          - id: approval
+            name: Approve the change
+            type: approval
+            position_x: 195
+            position_y: 150
+            params:
+              title: Approve the service prefix announcement
+              # Shown verbatim (no template rendering). The address and the
+              # change reference are in the run's inputs.
+              message: >-
+                Advertise the requested service address on the selected edge
+                routers? The address and the change reference are in this
+                run's inputs.
+              timeout_seconds: 3600
+            policy:
+              timeout_sec: 3600
+              retries: 0
+              on_failure: FAIL_RUN
+              evidence_required: false
+          - id: precheck
+            name: Evidence before
+            type: step
+            handler: netcli.collect_evidence
+            tags:
+              phase: PREPARE
+              evidence: pre
+            port_anchors:
+              failure: SE
+            position_x: 540
+            position_y: 30
+            target_selectors:
+              - type: role
+                role: change_targets
+            params:
+              commands:
+                - show running-config
+                - show ip route ospf
+            policy:
+              timeout_sec: 120
+              retries: 0
+              on_failure: FAIL_RUN
+              evidence_required: true
+          - id: apply
+            name: Apply the change
+            type: step
+            handler: netcli.execute
+            tags:
+              phase: IMPLEMENTATION
+              risk: high
+            port_anchors:
+              failure: SE
+            position_x: 825
+            position_y: 30
+            target_selectors:
+              - type: role
+                role: change_targets
+            params:
+              commands:
+                - configure terminal
+                - interface lo
+                - ip address {{ inputs.service_address }}/32
+                - router ospf
+                - network {{ inputs.service_address }}/32 area 0
+                # No `write memory`: the router's configuration file is
+                # mounted read-only, so the change lives in the running
+                # configuration, which is what the comparison reads.
+                - end
+            policy:
+              timeout_sec: 120
+              retries: 0
+              on_failure: FAIL_RUN
+              evidence_required: false
+          - id: postcheck
+            name: Evidence after
+            type: step
+            handler: netcli.collect_evidence
+            tags:
+              phase: VERIFY
+              evidence: post
+            port_anchors:
+              failure: SE
+            position_x: 1125
+            position_y: 30
+            target_selectors:
+              - type: role
+                role: change_targets
+            params:
+              commands:
+                - show running-config
+                - show ip route ospf
+            policy:
+              timeout_sec: 120
+              retries: 0
+              on_failure: FAIL_RUN
+              evidence_required: true
+          - id: compare
+            name: The configuration changed
+            type: step
+            handler: evidence.compare
+            tags:
+              phase: VERIFY
+              evidence: diff
+            port_anchors:
+              failure: NbE
+            position_x: 1425
+            position_y: 30
+            params:
+              precheck_step_id: precheck
+              postcheck_step_id: postcheck
+              # A difference continues to the core check. The failure port
+              # leads to the separate No change detected outcome.
+              comparison_type: changed
+              # Only the running configuration: the routing table carries
+              # timers that differ on every read.
+              artifact_name_pattern: "*show running-config"
+            policy:
+              timeout_sec: 60
+              retries: 0
+              on_failure: FAIL_RUN
+              evidence_required: false
+          - id: core_view
+            name: The core learned the route
+            type: step
+            handler: netcli.collect_evidence
+            tags:
+              phase: VERIFY
+            port_anchors:
+              failure: S
+            position_x: 1785
+            position_y: 30
+            target_selectors:
+              - type: role
+                role: observers
+            params:
+              commands:
+                - show ip route {{ inputs.service_address }}/32
+            policy:
+              timeout_sec: 120
+              retries: 1
+              on_failure: FAIL_RUN
+              evidence_required: true
+          - id: change-completed
+            name: Change completed
+            position_x: 2145
+            position_y: 60
+            terminal_status: success
+            type: terminal
+          - id: no-change-detected
+            name: No change detected
+            position_x: 2145
+            position_y: -90
+            terminal_status: success
+            type: terminal
+          - id: unexpected-failure
+            name: Unexpected failure
+            port_anchors:
+              in: N
+            position_x: 945
+            position_y: 465
+            terminal_status: failure
+            type: terminal
+        edges:
+          - source: start:start
+            target: approval
+          - source: approval:approved
+            target: precheck
+          - source: approval:rejected
+            target: unexpected-failure
+          - source: approval:expired
+            target: unexpected-failure
+          - source: precheck:success
+            target: apply
+          - source: precheck:failure
+            target: unexpected-failure
+          - source: apply:success
+            target: postcheck
+          - source: apply:failure
+            target: unexpected-failure
+          - source: postcheck:success
+            target: compare
+          - source: postcheck:failure
+            target: unexpected-failure
+          - source: compare:success
+            target: core_view
+          - source: compare:failure
+            target: no-change-detected
+          - source: core_view:success
+            target: change-completed
+          - source: core_view:failure
+            target: unexpected-failure
+      form:
+        nodes:
+          - id: sec_targets
+            kind: section
+            position_x: 80
+            position_y: 60
+            width: 480
+            height: 300
+            data:
+              label: Routers
+              runtime_layout: card
+              collapsible: false
+          - id: f_targets
+            kind: field
+            parent_id: sec_targets
+            position_x: 40
+            position_y: 60
+            data:
+              label: Edge routers to change
+              field_id: targets
+              field_type: inventory.device
+              required: true
+              description: The routers that advertise the service address.
+              default_value:
+[%- for d in edges %]
+                - [[ d.name ]]
+[%- endfor %]
+              config:
+                role: change_targets
+                multiple: true
+                option_source:
+                  kind: inventory.devices
+          - id: f_observers
+            kind: field
+            parent_id: sec_targets
+            position_x: 40
+            position_y: 160
+            data:
+              label: Core router that should learn the route
+              field_id: observers
+              field_type: inventory.device
+              required: true
+              default_value:
+[%- for d in cores %]
+                - [[ d.name ]]
+[%- endfor %]
+              config:
+                role: observers
+                multiple: true
+                option_source:
+                  kind: inventory.devices
+          - id: sec_change
+            kind: section
+            position_x: 620
+            position_y: 60
+            width: 480
+            height: 240
+            data:
+              label: Change
+              runtime_layout: card
+              collapsible: false
+          - id: f_service_address
+            kind: field
+            parent_id: sec_change
+            position_x: 40
+            position_y: 60
+            data:
+              label: Service address
+              field_id: service_address
+              field_type: core.text
+              required: true
+              default_value: 10.255.100.1
+              description: A host address in 10.255.100.0/24, advertised as a /32.
+              config:
+                validations:
+                  combinator: AND
+                  children:
+                    - id: v_address
+                      op: regex
+                      operand:
+                        kind: value
+                        value: "^10\\.255\\.100\\.([1-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-4])$"
+          - id: f_change_id
+            kind: field
+            parent_id: sec_change
+            position_x: 40
+            position_y: 140
+            data:
+              label: Change reference
+              field_id: change_id
+              field_type: core.text
+              required: true
+              default_value: CHG-1001
+              config:
+                validations:
+                  combinator: AND
+                  children:
+                    - id: v_change_id
+                      op: regex
+                      operand:
+                        kind: value
+                        value: "^CHG-[0-9]+$"
+        edges: []
+
+notification_destinations:
+  - name: NOC email
+    type: email
+    enabled: true
+    config_json:
+      to:
+        - [[ noc_email ]]
+      from: [[ sender ]]
+      smtp_host_ref: mailpit
+      smtp_port_ref: "1025"
+      smtp_use_tls_ref: "false"
+      smtp_use_starttls_ref: "false"
+  - name: Approvals email
+    type: email
+    enabled: true
+    config_json:
+      to:
+        - [[ email("approvals", org.slug) ]]
+      from: [[ sender ]]
+      smtp_host_ref: mailpit
+      smtp_port_ref: "1025"
+      smtp_use_tls_ref: "false"
+      smtp_use_starttls_ref: "false"
+
+flow_subscriptions:
+  - flow: Announce service prefix
+    destination: Approvals email
+    event: approval.requested
+    enabled: true
+  - flow: Announce service prefix
+    destination: NOC email
+    event: run.completed
+    enabled: true
+  - flow: Announce service prefix
+    destination: NOC email
+    event: run.failed
+    enabled: true

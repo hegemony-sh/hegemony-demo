@@ -1,0 +1,27 @@
+version = 1
+SPDX-PackageName = "hegemony-demo"
+SPDX-PackageSupplier = "Rexonix s.r.o."
+SPDX-PackageDownloadLocation = "https://github.com/hegemony-sh/hegemony-demo-data"
+
+# Lockfiles and JSON carry no comment syntax.
+[[annotations]]
+path = ["uv.lock", ".github/renovate.json"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Rexonix s.r.o."
+SPDX-License-Identifier = "AGPL-3.0-or-later"
+
+# Everything the generator writes (demo-gen). Some outputs cannot carry a
+# comment header (JSON, FRR configuration read verbatim, the login table the
+# installer prints), so the whole tree is annotated here.
+[[annotations]]
+path = ["dist/**", "docs/_generated/**"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Rexonix s.r.o."
+SPDX-License-Identifier = "AGPL-3.0-or-later"
+
+# FRR reads these files verbatim; keep them free of comment headers.
+[[annotations]]
+path = ["deploy/lab/router/daemons", "deploy/lab/router/vtysh.conf"]
+precedence = "aggregate"
+SPDX-FileCopyrightText = "2026 Rexonix s.r.o."
+SPDX-License-Identifier = "AGPL-3.0-or-later"
