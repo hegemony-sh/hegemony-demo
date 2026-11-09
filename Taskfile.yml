@@ -19,6 +19,13 @@ tasks:
     cmds:
       - "{{.TASKFILE_DIR}}/deploy/compose/up.sh"
 
+  up:local:
+    desc: "Like `task up`, but build the platform images from your platform checkout (HEGEMONY_PLATFORM_DIR); `task up` goes back to the release"
+    env:
+      HEGEMONY_PLATFORM_BUILD: local
+    cmds:
+      - "{{.TASKFILE_DIR}}/deploy/compose/up.sh"
+
   check:
     desc: Check the running demo (services, API, lab network, Gitea, login, UI, mail) without running a flow
     cmds:

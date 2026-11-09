@@ -9,6 +9,12 @@
 # top, migrate the database, start everything and wait until the API is
 # ready. Safe to run again.
 #
+# HEGEMONY_PLATFORM_BUILD=local (what `task up:local` sets) builds the platform
+# images from the platform checkout instead of pulling the pinned release, for
+# trying an unreleased platform change with the demo. The mode is recorded in
+# .local/demo.env, so `task logs`, `task down` and the rest use the same
+# images; a plain `task up` goes back to the release.
+#
 # Before the platform images are public (a test before launch), set HEGEMONY_GHCR_TOKEN
 # (a read:packages token) and optionally HEGEMONY_GHCR_USER. The login goes to
 # a throwaway Docker config used for the pull and build only, removed after.
@@ -19,6 +25,21 @@ compose="$compose_dir/compose.sh"
 
 log() { echo "[hegemony-demo] $*"; }
 die() { echo "[hegemony-demo] ERROR: $*" >&2; exit 1; }
+
+platform_build="${HEGEMONY_PLATFORM_BUILD:-release}"
+case "$platform_build" in
+  release | local) ;;
+  *) die "unknown HEGEMONY_PLATFORM_BUILD: $platform_build (use release or local)" ;;
+esac
+local_env="$compose_dir/.local/demo.env"
+[[ -f "$local_env" ]] || die "$local_env is missing: run install.sh (it generates the demo password)"
+# Record the mode for compose.sh (the environment variable wins over the file).
+recorded="$(grep -v '^HEGEMONY_PLATFORM_BUILD=' "$local_env" || true)"
+(umask 077 && printf '%s\n' "$recorded" >"$local_env.tmp")
+[[ "$platform_build" == release ]] || echo "HEGEMONY_PLATFORM_BUILD=local" >>"$local_env.tmp"
+mv "$local_env.tmp" "$local_env"
+unset recorded
+export HEGEMONY_PLATFORM_BUILD="$platform_build"
 
 registry_config=""
 cleanup() { [[ -z "$registry_config" ]] || rm -rf "$registry_config"; }
@@ -68,6 +89,12 @@ done
 
 log "Fetching plugin wheels ..."
 "$compose_dir/fetch-wheels.sh"
+
+if [[ "$platform_build" == local ]]; then
+  log "Building the platform images from the platform checkout (the first time takes a while) ..."
+  # migrate runs the api image, so building api covers it.
+  HEGEMONY_DEMO_OVERLAYS=none "$compose" build api worker scheduler ui
+fi
 
 log "Building the demo images ..."
 "$compose" build --quiet api worker

@@ -102,6 +102,33 @@ The repository has no such secrets, so until launch the E2E, release and
 Adopt platform release workflows cannot read the platform; run the branch as
 above instead. After launch they need no token at all.
 
+### Run the demo on an unreleased platform change
+
+`task up:local` brings the demo up on platform images built from a platform
+checkout, instead of the pinned release. It uses the platform's own
+`deploy/compose/docker-compose.prod-local.yml`, so it needs the four plugin
+repositories beside the platform checkout, the same layout a platform
+developer already has:
+
+```text
+work/
+  hegemony/                        # the platform, on your branch
+  hegemony-inventory-plugins/
+  hegemony-notification-plugins/
+  hegemony-secret-plugins/
+  hegemony-step-plugins/
+```
+
+```sh
+HEGEMONY_PLATFORM_DIR=~/work/hegemony task up:local
+```
+
+The platform images are tagged `local`, and the demo's api and worker images
+are built on top of them. The mode is recorded in `deploy/compose/.local/demo.env`,
+so `task logs`, `task down` and the other tasks use the same images. A plain
+`task up` goes back to the pinned release. The demo's plugin wheels still come
+from `platform.env`.
+
 ## Commit messages
 
 Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/),

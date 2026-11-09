@@ -105,6 +105,7 @@ From the demo directory (`./hegemony-demo/demo`; the platform's files are in
 | `task restart-worker` | `deploy/compose/compose.sh restart worker` |
 | `task password` | `grep PASSWORD deploy/compose/.local/demo.env` |
 | `task check` (checks only, runs no flow) | `deploy/compose/verify.sh` |
+| `task up:local` (platform built from your checkout, see [CONTRIBUTING](CONTRIBUTING.md#run-the-demo-on-an-unreleased-platform-change)) | `HEGEMONY_PLATFORM_BUILD=local deploy/compose/up.sh` |
 
 To remove the demo: `task reset`, then delete the directory. Something not
 working? See [troubleshooting](docs/troubleshooting.md).
