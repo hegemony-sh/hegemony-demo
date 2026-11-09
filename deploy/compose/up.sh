@@ -33,17 +33,31 @@ case "$platform_build" in
 esac
 local_env="$compose_dir/.local/demo.env"
 [[ -f "$local_env" ]] || die "$local_env is missing: run install.sh (it generates the demo password)"
+# The checkout a local build uses: the one given now, else the one recorded by
+# the last local build (compose.sh falls back to HEGEMONY_PLATFORM_DIR).
+build_dir=""
+if [[ "$platform_build" == local ]]; then
+  if [[ -n "${HEGEMONY_PLATFORM_DIR:-}" ]]; then
+    build_dir="$(cd -- "$HEGEMONY_PLATFORM_DIR" 2>/dev/null && pwd)" \
+      || die "no platform checkout at $HEGEMONY_PLATFORM_DIR"
+  else
+    build_dir="$(sed -n 's/^HEGEMONY_PLATFORM_BUILD_DIR=//p' "$local_env" | tail -n 1)"
+  fi
+fi
+
+# Check the new setting before recording it, so a mistake leaves the running
+# stack manageable with the setting it was started with.
+HEGEMONY_PLATFORM_BUILD="$platform_build" HEGEMONY_PLATFORM_DIR="${build_dir:-${HEGEMONY_PLATFORM_DIR:-}}" \
+  "$compose" config --quiet \
+  || die "the $platform_build platform build cannot start (see above); nothing was changed"
+
 # Record the mode for compose.sh (the environment variable wins over the file),
-# and for a local build the checkout given for it, so later tasks use it too.
+# and for a local build its checkout, so the later tasks use the same files.
 recorded="$(grep -vE '^HEGEMONY_PLATFORM_BUILD(_DIR)?=' "$local_env" || true)"
 (umask 077 && printf '%s\n' "$recorded" >"$local_env.tmp")
 if [[ "$platform_build" == local ]]; then
   echo "HEGEMONY_PLATFORM_BUILD=local" >>"$local_env.tmp"
-  if [[ -n "${HEGEMONY_PLATFORM_DIR:-}" ]]; then
-    build_dir="$(cd -- "$HEGEMONY_PLATFORM_DIR" 2>/dev/null && pwd)" \
-      || { rm -f "$local_env.tmp"; die "no platform checkout at $HEGEMONY_PLATFORM_DIR"; }
-    echo "HEGEMONY_PLATFORM_BUILD_DIR=$build_dir" >>"$local_env.tmp"
-  fi
+  [[ -z "$build_dir" ]] || echo "HEGEMONY_PLATFORM_BUILD_DIR=$build_dir" >>"$local_env.tmp"
 fi
 mv "$local_env.tmp" "$local_env"
 unset recorded

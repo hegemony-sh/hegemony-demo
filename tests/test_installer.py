@@ -470,6 +470,7 @@ def test_compose_refuses_an_unknown_build(sandbox: Sandbox) -> None:
 @pytest.mark.parametrize("build", ["local", "release"])
 def test_up_records_the_build_for_the_other_tasks(sandbox: Sandbox, build: str) -> None:
     assert sandbox.run("--no-up").returncode == 0
+    _local_build_platform(sandbox)
     local = sandbox.checkout / "deploy/compose/.local/demo.env"
     local.write_text(local.read_text() + "HEGEMONY_PLATFORM_BUILD=local\n")
     before = _local_env(sandbox)
@@ -492,6 +493,39 @@ def test_up_records_the_build_for_the_other_tasks(sandbox: Sandbox, build: str) 
     assert stat.S_IMODE(local.stat().st_mode) == 0o600
     assert local.read_text().count("HEGEMONY_PLATFORM_BUILD=") <= 1
     assert local.read_text().count("HEGEMONY_PLATFORM_BUILD_DIR=") <= 1
+
+
+def _up(sandbox: Sandbox, **env: str) -> subprocess.CompletedProcess[str]:
+    # The lab is not in the sandbox, so up.sh stops right after recording.
+    return subprocess.run(
+        ["bash", str(sandbox.checkout / "deploy/compose/up.sh")],
+        env={**sandbox.env, **env},
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+
+
+def test_up_keeps_the_recorded_checkout_on_the_next_local_build(sandbox: Sandbox) -> None:
+    assert sandbox.run("--no-up").returncode == 0
+    _local_build_platform(sandbox)
+    _up(sandbox, HEGEMONY_PLATFORM_BUILD="local")
+    recorded = _local_env(sandbox)["HEGEMONY_PLATFORM_BUILD_DIR"]
+    env = {k: v for k, v in sandbox.env.items() if k != "HEGEMONY_PLATFORM_DIR"}
+    sandbox.env = env
+    _up(sandbox, HEGEMONY_PLATFORM_BUILD="local")
+    assert _local_env(sandbox)["HEGEMONY_PLATFORM_BUILD_DIR"] == recorded
+
+
+def test_up_changes_nothing_when_the_local_build_cannot_start(sandbox: Sandbox) -> None:
+    assert sandbox.run("--no-up").returncode == 0
+    local = sandbox.checkout / "deploy/compose/.local/demo.env"
+    before = local.read_text()
+    # No docker-compose.prod-local.yml and no plugin repositories.
+    result = _up(sandbox, HEGEMONY_PLATFORM_BUILD="local")
+    assert result.returncode == 1
+    assert "nothing was changed" in result.stderr
+    assert local.read_text() == before
 
 
 def test_up_builds_the_platform_before_the_demo_images() -> None:
