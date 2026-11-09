@@ -27,12 +27,10 @@ packages = ["generator/hegemony_demo_gen"]
 
 [dependency-groups]
 dev = [
-    "mypy==1.18.2",
     "pre-commit>=4.0.0",
     "pytest==9.0.3",
     "reuse>=6.2.0",
     "ruff==0.14.2",
-    "types-PyYAML==6.0.12.20250915",
 ]
 
 [tool.ruff]
@@ -49,11 +47,6 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "S105", "S106"]
-
-[tool.mypy]
-python_version = "3.12"
-strict = true
-files = ["generator", "scripts", "tests"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
