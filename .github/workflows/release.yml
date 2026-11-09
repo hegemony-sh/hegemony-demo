@@ -10,7 +10,9 @@
 #   1. platform.env names the newest published platform release and the
 #      plugin wheels it was built with (`python3 scripts/latest_release.py
 #      write`; the verify job refuses anything older);
-#   2. the E2E workflow passed on that commit.
+#   2. platform.env pins a hegemony-demo-inventory tag that matches the
+#      spec (the Check workflow's inventory job);
+#   3. the E2E workflow passed on that commit.
 # The release carries install.sh, stamped with the tag so it installs exactly
 # this release, and SHA256SUMS. hegemony.sh/install.sh serves the newest
 # release's install.sh.
@@ -54,6 +56,10 @@ jobs:
           HEGEMONY_GITHUB_TOKEN: ${{ secrets.REPOS_READ_TOKEN }}
         run: python3 scripts/latest_release.py check
       - run: uv run demo-gen --check
+      - name: The pinned inventory matches the spec
+        run: |
+          deploy/lab/fetch-inventory.sh
+          uv run demo-gen --check-inventory deploy/lab/inventory
       - run: uv run pytest
 
   publish:
