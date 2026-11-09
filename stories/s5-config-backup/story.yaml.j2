@@ -1,0 +1,131 @@
+[#
+SPDX-FileCopyrightText: 2026 Rexonix s.r.o.
+SPDX-FileContributor: Jakub Trávník <jakub.travnik@gmail.com>
+
+SPDX-License-Identifier: AGPL-3.0-or-later
+
+S5 "Every change in Git". An Ansible playbook reads each router's running
+configuration and commits it to the lab's Gitea, only when something changed,
+so the repository's history is the network's: run it after stories 1 and 4 and the
+commit shows the new service address. A nightly schedule ships disabled.
+#]
+[%- set routers = devices("edge", live=True) + devices("core", live=True) %]
+flows:
+  - name: Configuration backup
+    description: >-
+      Read every selected router's running configuration with Ansible and
+      commit it to the backup repository in Git, one file per router. Nothing
+      is committed when nothing changed, so each commit is a change to the
+      network.
+    tags:
+      story: s5
+    definition:
+      graph:
+        nodes:
+          - id: start
+            name: Start
+            type: start
+            position_x: 0
+            position_y: 120
+          - id: backup
+            name: Back up to Git
+            type: step
+            handler: ansible.playbook
+            tags:
+              phase: VERIFY
+              kind: CHECK
+            position_x: 270
+            position_y: 105
+            # No inventory file: the step builds it from these targets and
+            # gives Ansible each router's login from its access configuration.
+            target_selectors:
+              - type: role
+                role: backup_targets
+            params:
+              playbook: backup.yml
+              # The Git login comes from Hegemony's secrets, passed to Ansible
+              # in a file and redacted from the output.
+              secrets:
+                git_username: "{{ secret('vault://orgs/[[ org.slug ]]/secrets/ops/git/https/username') }}"
+                git_password: "{{ secret('vault://orgs/[[ org.slug ]]/secrets/ops/git/https/password') }}"
+              extra_vars:
+                git_url: [[ git_backup_url ]]
+                commit_message: "Configuration backup, Hegemony run {{ run_id }}"
+              timeout_seconds: 300
+              # The container reaches the routers' SSH and Gitea, nothing else.
+              egress_mode: allow-listed
+              egress_allow:
+                - [[ lab.management ]]:22/tcp
+                - [[ git_backup_url.split("/")[2].split(":")[0] ]]/32:3000/tcp
+            policy:
+              timeout_sec: 330
+              retries: 0
+              on_failure: FAIL_RUN
+              evidence_required: false
+          - id: done
+            name: Backed up
+            type: terminal
+            terminal_status: success
+            position_x: 600
+            position_y: 90
+          - id: failure
+            name: Failure
+            position_x: 600
+            position_y: 180
+            terminal_status: failure
+            type: terminal
+        edges:
+          - source: start:start
+            target: backup
+          - source: backup:success
+            target: done
+          - source: backup:failure
+            target: failure
+      form:
+        nodes:
+          - id: sec_targets
+            kind: section
+            position_x: 80
+            position_y: 60
+            width: 480
+            height: 200
+            data:
+              label: Routers
+              runtime_layout: card
+              collapsible: false
+          - id: f_targets
+            kind: field
+            parent_id: sec_targets
+            position_x: 40
+            position_y: 60
+            data:
+              label: Routers to back up
+              field_id: targets
+              field_type: inventory.device
+              required: true
+              description: [[ "Each router's running configuration lands in " ~ git_backup_web ~ "." ]]
+              default_value:
+[%- for d in routers %]
+                - [[ d.name ]]
+[%- endfor %]
+              config:
+                role: backup_targets
+                multiple: true
+                option_source:
+                  kind: inventory.devices
+
+flow_attachments:
+  - flow: Configuration backup
+    filename: backup.yml
+    source: backup.yml
+
+# Off by default, like every schedule the demo ships. Enable it in Schedules
+# for a nightly backup.
+schedules:
+  - name: Nightly configuration backup
+    flow: Configuration backup
+    schedule_type: recurring
+    cron_expression: "30 1 * * *"
+    timezone: UTC
+    params: {}
+    enabled: false

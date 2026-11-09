@@ -1,0 +1,333 @@
+[#
+SPDX-FileCopyrightText: 2026 Rexonix s.r.o.
+SPDX-FileContributor: Jakub Trávník <jakub.travnik@gmail.com>
+
+SPDX-License-Identifier: AGPL-3.0-or-later
+
+S2 "The run that outlives the worker". A maintenance window that drains the
+edge routers, settles briefly, then watches reachability alongside an
+approval with a deadline. The walkthrough restarts the workers while the run
+waits at the approval: that wait (and its deadline timer) is workflow state,
+so the run carries on. The settle step is a plain step that runs inside a
+worker; a restart during it starts it again, so it is kept short. A drain
+that fails on one router is undone on all of them before the run fails.
+#]
+[%- set edges = devices("edge", live=True) %]
+flows:
+  - name: Maintenance window
+    description: >-
+      Drain traffic away from the edge routers (OSPF max-metric), let it
+      settle, watch reachability, then wait for someone to close the window.
+      If nobody does before the deadline, the window closes itself and the
+      routers are restored.
+    tags:
+      story: s2
+    definition:
+      run_limits:
+        max_concurrent_runs: 1
+      graph:
+        nodes:
+          - id: start
+            name: Start
+            type: start
+            position_x: 0
+            position_y: 200
+          - id: drain
+            name: Drain the edge routers
+            type: step
+            handler: netcli.execute
+            tags:
+              phase: IMPLEMENTATION
+              risk: medium
+            port_anchors:
+              failure: SE
+            position_x: 195
+            position_y: 165
+            target_selectors:
+              - type: role
+                role: window_targets
+            params:
+              commands:
+                - configure terminal
+                - router ospf
+                - max-metric router-lsa administrative
+                - end
+            policy:
+              timeout_sec: 120
+              retries: 0
+              on_failure: FAIL_RUN
+              evidence_required: false
+          # A drain that fails on one router may already have drained another:
+          # put every router back, as far as it goes, before the run fails.
+          - id: undo_drain
+            name: Undo the drain
+            type: step
+            handler: netcli.execute
+            tags:
+              phase: IMPLEMENTATION
+            port_anchors:
+              in: N
+              failure: S
+              success: E
+            position_x: 195
+            position_y: 450
+            target_selectors:
+              - type: role
+                role: window_targets
+            params:
+              commands:
+                - configure terminal
+                - router ospf
+                - no max-metric router-lsa administrative
+                - end
+            policy:
+              timeout_sec: 120
+              retries: 1
+              on_failure: CONTINUE
+              evidence_required: false
+          - id: settle
+            name: Let traffic settle
+            type: step
+            handler: general.sleep
+            tags:
+              phase: IMPLEMENTATION
+            port_anchors:
+              failure: SE
+            position_x: 540
+            position_y: 165
+            params:
+              duration_seconds: 30
+              message: Waiting for traffic to move off the drained routers
+            policy:
+              timeout_sec: 120
+              retries: 2
+              on_failure: FAIL_RUN
+              evidence_required: false
+          - id: watch
+            name: Watch reachability
+            type: step
+            handler: monitor.connectivity
+            tags:
+              phase: VERIFY
+            position_x: 1005
+            position_y: 15
+            target_selectors:
+              - type: ip
+                addresses:
+[%- for d in edges %]
+                  - [[ d.mgmt_host ]]
+[%- endfor %]
+            params:
+              check_type: tcp_connect
+              port: 22
+              attempt_timeout_seconds: 3
+              interval_ms: 5000
+              schedule_mode: until_join
+              count: 12
+            policy:
+              # Observation only: a lost sample must not fail the window.
+              on_failure: CONTINUE
+              evidence_required: false
+          - id: close_gate
+            name: Close the window
+            type: approval
+            port_anchors:
+              approved: EbN
+              expired: SEbE
+              rejected: NE
+            position_x: 1005
+            position_y: 195
+            params:
+              title: Close the maintenance window
+              message: >-
+                The edge routers are drained. Approve to restore them now.
+                Reject to keep them drained. With no decision in 15 minutes
+                the window closes itself and the routers are restored.
+              timeout_seconds: 900
+            policy:
+              timeout_sec: 900
+              retries: 0
+              on_failure: FAIL_RUN
+              evidence_required: false
+          - id: restore
+            name: Restore the edge routers
+            type: step
+            handler: netcli.execute
+            tags:
+              phase: IMPLEMENTATION
+            port_anchors:
+              failure: S
+              in: SW
+            position_x: 1575
+            position_y: 165
+            target_selectors:
+              - type: role
+                role: window_targets
+            params:
+              commands:
+                - configure terminal
+                - router ospf
+                - no max-metric router-lsa administrative
+                - end
+            policy:
+              timeout_sec: 120
+              retries: 1
+              on_failure: FAIL_RUN
+              evidence_required: false
+          - id: verify
+            name: Evidence after the window
+            type: step
+            handler: netcli.collect_evidence
+            tags:
+              phase: VERIFY
+            port_anchors:
+              failure: S
+            position_x: 1905
+            position_y: 165
+            target_selectors:
+              - type: role
+                role: window_targets
+            params:
+              commands:
+                - show running-config
+                - show ip ospf neighbor
+            policy:
+              timeout_sec: 120
+              retries: 0
+              on_failure: FAIL_RUN
+              evidence_required: true
+          - id: done
+            name: Window closed
+            type: terminal
+            terminal_status: success
+            position_x: 2295
+            position_y: 195
+          - id: kept_open
+            name: Routers left drained
+            type: terminal
+            terminal_status: failure
+            position_x: 1575
+            position_y: 15
+          - id: failed
+            name: Window failed
+            type: terminal
+            terminal_status: failure
+            port_anchors:
+              in: N
+            position_x: 1095
+            position_y: 600
+          - id: fork
+            name: Fork
+            port_anchors:
+              fork: E
+              in: W
+            position_x: 840
+            position_y: 180
+            type: fork
+        edges:
+          - source: start:start
+            target: drain
+          - source: drain:success
+            target: settle
+          - source: drain:failure
+            target: undo_drain
+          - source: undo_drain:success
+            target: failed
+          - source: undo_drain:failure
+            target: failed
+          - source: settle:success
+            target: fork
+          - source: settle:failure
+            target: restore
+          - source: close_gate:approved
+            target: restore
+          - source: close_gate:expired
+            target: restore
+          - source: close_gate:rejected
+            target: kept_open
+          - source: restore:success
+            target: verify
+          - source: restore:failure
+            target: failed
+          - source: verify:success
+            target: done
+          - source: verify:failure
+            target: failed
+          - source: fork:fork
+            target: close_gate
+          - source: fork:fork
+            target: watch
+      form:
+        nodes:
+          - id: sec_targets
+            kind: section
+            position_x: 80
+            position_y: 60
+            width: 480
+            height: 200
+            data:
+              label: Routers
+              runtime_layout: card
+              collapsible: false
+          - id: f_targets
+            kind: field
+            parent_id: sec_targets
+            position_x: 40
+            position_y: 60
+            data:
+              label: Edge routers to drain
+              field_id: targets
+              field_type: inventory.device
+              required: true
+              default_value:
+[%- for d in edges %]
+                - [[ d.name ]]
+[%- endfor %]
+              config:
+                role: window_targets
+                multiple: true
+                option_source:
+                  kind: inventory.devices
+        edges: []
+
+notification_destinations:
+  - name: NOC email
+    type: email
+    enabled: true
+    config_json:
+      to:
+        - [[ noc_email ]]
+      from: [[ sender ]]
+      smtp_host_ref: mailpit
+      smtp_port_ref: "1025"
+      smtp_use_tls_ref: "false"
+      smtp_use_starttls_ref: "false"
+
+flow_subscriptions:
+  - flow: Maintenance window
+    destination: NOC email
+    event: approval.requested
+    enabled: true
+  - flow: Maintenance window
+    destination: NOC email
+    event: approval.expired
+    enabled: true
+  - flow: Maintenance window
+    destination: NOC email
+    event: run.completed
+    enabled: true
+  - flow: Maintenance window
+    destination: NOC email
+    event: run.failed
+    enabled: true
+
+# Off by default: a demo should not drain routers on its own at night.
+# Enable it in Schedules to show a recurring window.
+schedules:
+  - name: Weekly maintenance window
+    flow: Maintenance window
+    schedule_type: recurring
+    cron_expression: "0 3 * * 0"
+    timezone: UTC
+    params: {}
+    enabled: false

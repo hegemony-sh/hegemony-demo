@@ -1,0 +1,16 @@
+# SPDX-FileCopyrightText: 2026 Rexonix s.r.o.
+# SPDX-FileContributor: Jakub Trávník <jakub.travnik@gmail.com>
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+*       @hegemony-sh/maintainers
+
+# What runs with a token or decides what is published and installed.
+/.github/workflows/        @hegemony-sh/maintainers
+/.github/zizmor.yml        @hegemony-sh/maintainers
+/.github/CODEOWNERS        @hegemony-sh/maintainers
+/install.sh                @hegemony-sh/maintainers
+/platform.env              @hegemony-sh/maintainers
+/deploy/compose/           @hegemony-sh/maintainers
+/.gitleaks.toml            @hegemony-sh/maintainers
+/SECURITY.md               @hegemony-sh/maintainers

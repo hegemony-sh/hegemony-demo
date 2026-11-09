@@ -1,0 +1,195 @@
+# SPDX-FileCopyrightText: 2026 Rexonix s.r.o.
+# SPDX-FileContributor: Jakub Trávník <jakub.travnik@gmail.com>
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+# The public basic demo. This is the only data file anyone edits: run
+# `uv run demo-gen` afterwards and commit dist/ and docs/_generated/ with it.
+# Theme names belong in names, descriptions, sites, people and domains only;
+# technical identifiers (flow, secret, file and header names) stay theme-free.
+# A larger demo can start from this one with `extends: basic.yaml`: mappings
+# merge by key, lists of mappings merge by their id field (slug, username,
+# code, id), and everything else is replaced.
+spec_version: 1
+id: basic
+
+theme:
+  operator: Amphictyon Networks
+  domain: amphictyon.example
+  region_root: Hellas
+
+orgs:
+  - slug: default
+    name: Amphictyon Networks
+    description: The operator. Runs the network for the city-states and the shared standards.
+    region: Phocis
+  - slug: shared
+    name: Oracle of Delphi
+    description: Golden standards every city inherits unless it decides otherwise.
+    shared: true
+    variables:
+      NTP_PRIMARY: 10.90.0.123
+      DNS_PRIMARY: 10.90.0.53
+      SYSLOG_PRIMARY: 10.90.0.14
+      STANDARDS_OWNER: Oracle of Delphi
+  - slug: athens
+    name: Athens
+    description: A city-state customer with its own time source.
+    region: Attica
+    variables:
+      NTP_PRIMARY: 10.92.0.123
+  - slug: sparta
+    name: Sparta
+    description: A city-state customer that takes the standards as they are.
+    region: Laconia
+
+# Keycloak groups and the organization role each one grants, per org.
+groups:
+  /Amphictyon-Admins: {default: admin, shared: admin, athens: admin, sparta: admin}
+  /Amphictyon-Engineers: {default: editor, shared: editor, athens: editor, sparta: editor}
+  /Amphictyon-NOC: {default: operator, shared: viewer}
+  /Amphictyon-Approvers: {default: approver, shared: viewer}
+  /Compliance: {default: auditor, shared: auditor, athens: auditor, sparta: auditor}
+  /Athens-Admins: {athens: admin, shared: viewer}
+  /Sparta-Admins: {sparta: admin, shared: viewer}
+
+# role is the persona's headline role in the docs. Only role: admin becomes a
+# Keycloak realm role (platform administrator across all orgs); every other
+# right comes from the groups above, which the platform maps to org roles.
+personas:
+  - username: admin
+    persona: Zeus
+    role: admin
+    groups: [/Amphictyon-Admins]
+    about: Runs the whole platform.
+  - username: engineer
+    persona: Daedalus
+    role: editor
+    groups: [/Amphictyon-Engineers]
+    about: The builder. Edits flows and standards.
+  - username: noc
+    persona: Argus
+    role: operator
+    groups: [/Amphictyon-NOC]
+    about: The hundred-eyed watcher. Runs flows, cannot approve them.
+  - username: approver
+    persona: Themis
+    role: approver
+    groups: [/Amphictyon-Approvers]
+    about: Law and order. Approves or rejects changes.
+  - username: auditor
+    persona: Clio
+    role: auditor
+    groups: [/Compliance]
+    about: Muse of history. Reads everything, changes nothing.
+  - username: athens-admin
+    persona: Pericles
+    role: viewer
+    groups: [/Athens-Admins]
+    about: Runs Athens. Sees Athens and the shared standards only.
+  - username: sparta-admin
+    persona: Leonidas
+    role: viewer
+    groups: [/Sparta-Admins]
+    about: Runs Sparta. Sees Sparta and the shared standards only.
+
+# Device roles per site profile, and the model each role uses.
+profiles:
+  dc: {edge: 2, core: 1, oob: 1, srv: 2}
+  tenant-dc: {edge: 1, core: 1}
+  branch: {edge: 1, acc: 1}
+  small-branch: {edge: 1}
+models:
+  edge: {vendor: Juniper, model: MX204, platform: junos}
+  core: {vendor: Arista, model: 7280R3, platform: eos}
+  acc: {vendor: Cisco, model: C9300-48P, platform: ios-xe}
+  oob: {vendor: Opengear, model: OM2216, platform: linux}
+  srv: {vendor: Dell, model: PowerEdge R660, platform: linux}
+
+# source: bundle (local inventory in the org's bundle) or git (the git
+# inventory provider reads it from the lab's Gitea, which the lab seeds with
+# dist/inventory/).
+sites:
+  - {code: dlp1, name: Delphi, org: default, group: datacenter, status: active, profile: dc, source: bundle}
+  - {code: oly1, name: Olympia, org: default, group: datacenter, status: planned, profile: tenant-dc, source: git}
+  - {code: ath1, name: Athens, org: athens, group: datacenter, status: active, profile: tenant-dc, source: bundle}
+  - {code: pir1, name: Piraeus, org: athens, group: branch, status: active, profile: branch, source: bundle}
+  - {code: spa1, name: Sparta, org: sparta, group: branch, status: active, profile: branch, source: bundle}
+  - {code: gyt1, name: Gytheio, org: sparta, group: branch, status: active, profile: small-branch, source: bundle}
+
+# The lab: the network the stories change for real, in its own Compose project
+# (dist/lab/compose.yml, started before the platform). Its routers run FRR and
+# its servers Alpine Linux; their inventory records keep the names generated
+# above, with the management address on the lab's management network, which
+# the platform's worker and sandbox join. docs/_generated/topology.md draws it.
+lab:
+  management: 172.28.103.0/24
+  first_host: 21
+  # One /29 per link below, each its own Docker network.
+  link_pool: 10.255.1.0/24
+  asn: 65010
+  # The upstream provider: no organization manages it. The edges peer with it
+  # over eBGP and export the loopbacks and service_prefixes.
+  upstream: {name: hermes-isp, asn: 64500, prefix: 198.51.100.0/24}
+  service_prefixes: 10.255.100.0/24
+  routers: [dlp1-edge-01, dlp1-edge-02, dlp1-core-01, ath1-edge-01, spa1-edge-01]
+  # The services LAN behind services_router: the servers answer on the
+  # addresses the shared standards name (NTP, DNS, syslog).
+  services: 10.90.0.0/24
+  services_router: dlp1-core-01
+  servers:
+    dlp1-srv-01: [10.90.0.123, 10.90.0.53]
+    dlp1-srv-02: [10.90.0.14]
+  links:
+    - [hermes-isp, dlp1-edge-01]
+    - [hermes-isp, dlp1-edge-02]
+    - [dlp1-edge-01, dlp1-core-01]
+    - [dlp1-edge-02, dlp1-core-01]
+    - [dlp1-edge-01, ath1-edge-01]
+    - [dlp1-edge-02, spa1-edge-01]
+
+ip_plan:
+  management: 10.90.0.0/16
+  loopbacks: 10.255.0.0/24
+
+# The service catalogue: two repository-defined inventory types, services and
+# the addresses they answer on, written to dist/inventory/ next to the planned
+# sites. When enabled, the s4 form picks a service and one of its addresses
+# from them instead of typing both. Addresses must be hosts in
+# lab.service_prefixes; exactly one per service is primary (the form default).
+# It needs a platform release and a Git inventory plugin (0.5.0 or later) in
+# platform.env that read these files: an older release fails the whole Git
+# provider, the planned sites included (tests/test_catalog.py checks the pins).
+service_catalog:
+  enabled: true
+  services:
+    - id: portal
+      name: Customer portal
+      owner: Amphictyon NOC
+      environment: production
+      port: 443
+      enabled: true
+      labels: [customer-facing, routed]
+      verification_timeout_seconds: 120
+      require_approval: true
+      addresses:
+        - {id: portal-primary, name: Portal primary address, address: 10.255.100.20, purpose: primary}
+        - {id: portal-replacement, name: Portal replacement address, address: 10.255.100.21, purpose: replacement}
+
+contacts:
+  default: {name: Themistocles, email: noc}
+  athens: {name: Aspasia, email: netops}
+  sparta: {name: Gorgo, email: netops}
+
+stories:
+  - id: s1-approved-change
+    orgs: [default]
+  - id: s2-durable-window
+    orgs: [default]
+  # One flow in the shared org; Athens and Sparta run it from their own orgs.
+  - id: s3-shared-standards
+    orgs: [shared]
+  - id: s4-service-as-code
+    orgs: [default]
+  - id: s5-config-backup
+    orgs: [default]

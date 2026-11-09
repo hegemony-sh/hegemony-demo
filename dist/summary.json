@@ -1,0 +1,17 @@
+{
+  "devices": 15,
+  "lab_routers": 6,
+  "lab_servers": 2,
+  "live_devices": 7,
+  "organizations": 4,
+  "sites": 6,
+  "spec": "basic",
+  "stories": [
+    "s1-approved-change",
+    "s2-durable-window",
+    "s3-shared-standards",
+    "s4-service-as-code",
+    "s5-config-backup"
+  ],
+  "users": 7
+}

@@ -1,0 +1,162 @@
+# SPDX-FileCopyrightText: 2026 Rexonix s.r.o.
+# SPDX-FileContributor: Jakub Trávník <jakub.travnik@gmail.com>
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+# End to end: install the demo the way a user does, on released platform
+# images, and check that the stack and the stories' prerequisites work.
+#
+# Before a release (the weekly run and a manual run), it runs the newest
+# published platform release and the plugin wheels that release was built
+# with (scripts/latest_release.py), whatever platform.env pins. A published
+# demo release is checked as it was released, on its own pins.
+#
+# DRAFT. It cannot pass until platform 1.0.0 (or a release candidate) is
+# released and pinned in platform.env, or named by the platform_version input.
+# It reads the platform and its images without a login, so it passes only
+# once they are public. The optional read-only secrets GHCR_READ_TOKEN
+# (read:packages) and REPOS_READ_TOKEN (contents: read on the platform
+# repository) are passed when set, but the repository does not set them: run
+# a branch locally before launch (CONTRIBUTING.md). The `public` job proves
+# that no login is needed.
+
+name: E2E
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform_version:
+        description: >-
+          Platform release to run: latest (the newest published release and
+          its plugin wheels), pinned (what platform.env pins), or a version
+        required: false
+        default: latest
+      release_tag:
+        description: >-
+          A published demo release to check as it was released (its pins and
+          its installer). The release workflow sets it: a release it creates
+          starts no release-event workflow.
+        required: false
+        default: ""
+  release:
+    types: [published]
+  schedule:
+    - cron: "17 4 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  install:
+    name: Install from this checkout and check the stack
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      # Hosted runners start with about 14 GB free; the demo wants more.
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
+
+      # A schedule has no inputs, so it runs latest; a published demo release
+      # runs its own pins.
+      - name: Choose the platform release
+        env:
+          WANTED: ${{ (github.event_name == 'release' || inputs.release_tag != '') && 'pinned' || inputs.platform_version || 'latest' }}
+          HEGEMONY_GITHUB_TOKEN: ${{ secrets.REPOS_READ_TOKEN }}
+        run: |
+          case "$WANTED" in
+            latest) python3 scripts/latest_release.py write; echo "PLATFORM_VERSION=" >>"$GITHUB_ENV" ;;
+            pinned) echo "PLATFORM_VERSION=" >>"$GITHUB_ENV" ;;
+            *) echo "PLATFORM_VERSION=$WANTED" >>"$GITHUB_ENV" ;;
+          esac
+          grep -E '^HEGEMONY_(PLATFORM_VERSION|PLUGIN_WHEELS)=' platform.env
+
+      - name: Install the demo
+        env:
+          HEGEMONY_PLATFORM_VERSION: ${{ env.PLATFORM_VERSION }}
+          HEGEMONY_GHCR_TOKEN: ${{ secrets.GHCR_READ_TOKEN }}
+          HEGEMONY_GIT_TOKEN: ${{ secrets.REPOS_READ_TOKEN }}
+          # fetch-wheels.sh reads this name for a plugin release not yet public.
+          HEGEMONY_GITHUB_TOKEN: ${{ secrets.REPOS_READ_TOKEN }}
+          HEGEMONY_DEMO_WAIT_SECONDS: "900"
+        run: |
+          [ -n "$HEGEMONY_PLATFORM_VERSION" ] || unset HEGEMONY_PLATFORM_VERSION
+          [ -n "$HEGEMONY_GHCR_TOKEN" ] || unset HEGEMONY_GHCR_TOKEN
+          [ -n "$HEGEMONY_GIT_TOKEN" ] || unset HEGEMONY_GIT_TOKEN
+          [ -n "$HEGEMONY_GITHUB_TOKEN" ] || unset HEGEMONY_GITHUB_TOKEN
+          sh install.sh --dir "$RUNNER_TEMP/demo"
+
+      - name: Every service is up and healthy
+        run: |
+          deploy/compose/compose.sh ps --format '{{.Service}} {{.State}} {{.Health}}' | tee services.txt
+          deploy/lab/lab.sh ps --format '{{.Service}} {{.State}} {{.Health}}' | tee -a services.txt
+          ! grep -E ' (exited|restarting|dead)| unhealthy' services.txt
+
+      - name: The lab's network converged
+        run: deploy/lab/check.sh
+
+      - name: Gitea holds the seeded inventory
+        run: curl -fsS http://localhost:3000/api/v1/repos/netops/inventory >/dev/null
+
+      - name: The login server serves the demo realm
+        run: curl -fsS http://localhost:8081/realms/hegemony/.well-known/openid-configuration >/dev/null
+
+      - name: The UI and the mail sink answer
+        run: |
+          curl -fsS http://localhost:8080/ >/dev/null
+          curl -fsS http://localhost:8025/api/v1/info >/dev/null
+
+      - name: Published ports bind loopback only
+        run: |
+          for project in hegemony-demo hegemony-lab; do
+            docker ps --filter "label=com.docker.compose.project=$project" --format '{{.Ports}}'
+          done | tr ',' '\n' | grep -- '->' | tee ports.txt
+          ! grep -vE '^ *127\.0\.0\.1:' ports.txt
+
+      # TODO: drive the stories through the API as the personas (S1 approve
+      # as `approver`, S2 restart the workers mid-run, S3 compare the two
+      # reports, S4 and S5) on this throwaway runner. The realm allows no
+      # password grant, so this needs a browser login (Playwright) or a
+      # test-only client added by the workflow.
+
+      - name: Logs on failure
+        if: failure()
+        run: |
+          deploy/compose/compose.sh logs --no-color --tail=300 > compose-logs.txt || true
+          deploy/lab/lab.sh logs --no-color --tail=200 >> compose-logs.txt || true
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          name: compose-logs
+          path: compose-logs.txt
+          retention-days: 7
+
+  public:
+    name: Install the released installer with no login
+    if: github.event_name == 'release' || inputs.release_tag != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Free disk space
+        run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+      # Exactly what a user runs: the release asset, no token, no docker login.
+      - name: curl | sh
+        env:
+          TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
+          REPO: ${{ github.repository }}
+        run: |
+          curl -fsSL "https://github.com/$REPO/releases/download/$TAG/install.sh" | sh -s -- --dir "$RUNNER_TEMP/demo"
+      - name: The API is ready
+        run: |
+          cd "$RUNNER_TEMP/demo/demo"
+          deploy/compose/compose.sh exec -T api curl -sf http://localhost:8000/ready

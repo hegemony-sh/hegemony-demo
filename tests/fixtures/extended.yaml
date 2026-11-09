@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: 2026 Rexonix s.r.o.
+# SPDX-FileContributor: Jakub Trávník <jakub.travnik@gmail.com>
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+# Extends tiny.yaml the way a larger demo extends basic.yaml.
+extends: tiny.yaml
+id: extended
+orgs:
+  - {slug: tenant, description: Changed by the extension}
+  - {slug: other, name: Other Tenant, region: East}
+groups:
+  /Other-Admins: {other: admin}
+personas:
+  - {username: other-admin, persona: Other, role: viewer, groups: [/Other-Admins]}
+sites:
+  - {code: abc1, status: planned}
+  - {code: xyz1, name: Omega, org: other, group: branch, status: active, profile: pair}

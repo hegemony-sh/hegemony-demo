@@ -1,0 +1,133 @@
+# SPDX-FileCopyrightText: 2026 Rexonix s.r.o.
+# SPDX-FileContributor: Jakub Trávník <jakub.travnik@gmail.com>
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+version: "3"
+
+env:
+  PYTHONDONTWRITEBYTECODE: "1"
+
+vars:
+  COMPOSE: "{{.TASKFILE_DIR}}/deploy/compose/compose.sh"
+  LAB: "{{.TASKFILE_DIR}}/deploy/lab/lab.sh"
+
+tasks:
+  # ---------------------------------------------------------- the demo stack
+  up:
+    desc: Start the lab and the platform (pull, build, migrate, start, wait); safe to run again
+    cmds:
+      - "{{.TASKFILE_DIR}}/deploy/compose/up.sh"
+
+  check:
+    desc: Check the running demo (services, API, lab network, Gitea, login, UI, mail) without running a flow
+    cmds:
+      - "{{.TASKFILE_DIR}}/deploy/compose/verify.sh"
+
+  down:
+    desc: Stop the platform and the lab, keep their data
+    cmds:
+      - '"{{.COMPOSE}}" down'
+      - '"{{.LAB}}" down'
+
+  reset:
+    desc: "Stop the demo and DELETE its data (the next `task up` starts fresh)"
+    prompt: This deletes every run, approval and setting of the demo. Continue?
+    cmds:
+      - '"{{.COMPOSE}}" down --volumes --remove-orphans'
+      - '"{{.LAB}}" down --volumes --remove-orphans'
+
+  ps:
+    desc: Show the demo's containers (platform, then lab)
+    cmds:
+      - '"{{.COMPOSE}}" ps'
+      - '"{{.LAB}}" ps'
+
+  logs:
+    desc: "Follow logs (all, or e.g. `task logs -- api worker`)"
+    cmds:
+      - '"{{.COMPOSE}}" logs -f --tail=100 {{.CLI_ARGS}}'
+
+  restart-worker:
+    desc: Restart the workers (story S2 does this while a run waits)
+    cmds:
+      - '"{{.COMPOSE}}" restart worker'
+
+  # ---------------------------------------------------------------- the lab
+  lab:up:
+    desc: Start only the lab (routers, servers, Gitea, Mailpit) and check its network
+    cmds:
+      - "{{.TASKFILE_DIR}}/deploy/lab/up.sh"
+
+  lab:reset:
+    desc: Put the routers and servers back to their generated state (keeps Gitea and the platform)
+    cmds:
+      - '"{{.LAB}}" up -d --force-recreate --wait $("{{.LAB}}" config --services | grep -vxE "gitea|gitea-seed|mailpit")'
+      - "{{.TASKFILE_DIR}}/deploy/lab/check.sh"
+
+  lab:check:
+    desc: Check that the lab's network converged
+    cmds:
+      - "{{.TASKFILE_DIR}}/deploy/lab/check.sh"
+
+  lab:logs:
+    desc: "Follow the lab's logs (all, or e.g. `task lab:logs -- gitea`)"
+    cmds:
+      - '"{{.LAB}}" logs -f --tail=100 {{.CLI_ARGS}}'
+
+  password:
+    desc: Print the demo users' password
+    silent: true
+    cmds:
+      - sed -n 's/^HEGEMONY_DEMO_PASSWORD=//p' "{{.TASKFILE_DIR}}/deploy/compose/.local/demo.env"
+
+  # ------------------------------------------------------------- development
+  setup:
+    desc: Install the Python tools and the pre-commit hooks
+    cmds:
+      - uv sync --frozen
+      - uv run pre-commit install --install-hooks
+
+  gen:
+    desc: Regenerate dist/ and docs/_generated/ from spec/basic.yaml and stories/
+    cmds:
+      - uv run demo-gen
+
+  gen:check:
+    desc: Fail if dist/ or docs/_generated/ is not what the generator writes
+    cmds:
+      - uv run demo-gen --check
+
+  lint:
+    desc: Lint Python (ruff), spelling (typos) and shell scripts (shellcheck)
+    cmds:
+      - uv run ruff check .
+      - uv run ruff format --check .
+      - uvx typos@1.42.1
+      - |
+        git ls-files -z | xargs -0 grep -lE '^#!/(usr/)?bin/(env )?(bash|sh)' \
+          | xargs -r uvx --from shellcheck-py==0.11.0.1 shellcheck
+
+  types:
+    desc: Type check Python (ty)
+    cmds:
+      - uv run ty check
+
+  test:
+    desc: Run the tests
+    cmds:
+      - uv run pytest
+
+  reuse:
+    desc: Check REUSE licensing metadata
+    cmds:
+      - uv run reuse lint
+
+  ci:
+    desc: The Check workflow's generation, lint, type, test and licensing checks, locally
+    cmds:
+      - task: gen:check
+      - task: lint
+      - task: types
+      - task: test
+      - task: reuse

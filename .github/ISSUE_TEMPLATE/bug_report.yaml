@@ -1,0 +1,55 @@
+# SPDX-FileCopyrightText: 2026 Rexonix s.r.o.
+# SPDX-FileContributor: Jakub Trávník <jakub.travnik@gmail.com>
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: Bug report
+description: The demo does not install, start or behave as the README and walkthrough describe
+labels: ["bug"]
+body:
+  - type: input
+    id: demo-version
+    attributes:
+      label: Demo release
+      description: What `sh install.sh --version` prints, or the commit you run from.
+      placeholder: "vX.Y.Z"
+    validations:
+      required: true
+  - type: input
+    id: platform-version
+    attributes:
+      label: Hegemony platform release
+      description: HEGEMONY_PLATFORM_VERSION from platform.env, unless you set another one.
+      placeholder: "X.Y.Z"
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: System and Docker
+      description: Operating system, CPU architecture, and the output of `docker version --format '{{.Server.Version}}'` and `docker compose version`.
+      placeholder: "Ubuntu 24.04 x86-64, Docker 28.x, Compose v2.x"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The commands you ran and, for a story, which one and its inputs. Never paste the demo password or other secrets.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed behaviour
+      description: >-
+        What happened instead, with the output of `task check` (or
+        `deploy/compose/verify.sh`) and the relevant log lines (`task logs --
+        api`). Remove passwords, tokens and keys before you paste.
+    validations:
+      required: true

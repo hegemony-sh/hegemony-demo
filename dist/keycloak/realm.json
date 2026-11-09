@@ -1,0 +1,356 @@
+{
+  "accessCodeLifespan": 60,
+  "accessCodeLifespanLogin": 1800,
+  "accessCodeLifespanUserAction": 300,
+  "accessTokenLifespan": 300,
+  "bruteForceProtected": true,
+  "clients": [
+    {
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:8080/*"
+      },
+      "baseUrl": "/",
+      "clientId": "hegemony-ui",
+      "defaultClientScopes": [
+        "acr",
+        "basic",
+        "web-origins",
+        "profile",
+        "roles",
+        "email"
+      ],
+      "description": "Public client of the web UI (authorization code with PKCE)",
+      "directAccessGrantsEnabled": false,
+      "enabled": true,
+      "implicitFlowEnabled": false,
+      "name": "Hegemony UI",
+      "optionalClientScopes": [],
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "config": {
+            "access.token.claim": "true",
+            "claim.name": "sub",
+            "id.token.claim": "true",
+            "jsonType.label": "String",
+            "user.attribute": "id",
+            "userinfo.token.claim": "true"
+          },
+          "name": "sub",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "claim.name": "groups",
+            "full.path": "true",
+            "id.token.claim": "true",
+            "userinfo.token.claim": "true"
+          },
+          "name": "groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper"
+        },
+        {
+          "config": {
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "included.client.audience": "hegemony-api"
+          },
+          "name": "audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper"
+        }
+      ],
+      "publicClient": true,
+      "redirectUris": [
+        "http://localhost:8080/*"
+      ],
+      "rootUrl": "http://localhost:8080",
+      "serviceAccountsEnabled": false,
+      "standardFlowEnabled": true,
+      "webOrigins": [
+        "http://localhost:8080"
+      ]
+    },
+    {
+      "bearerOnly": true,
+      "clientId": "hegemony-api",
+      "description": "Bearer-only resource server: the audience the API checks",
+      "directAccessGrantsEnabled": false,
+      "enabled": true,
+      "name": "Hegemony API",
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "serviceAccountsEnabled": false,
+      "standardFlowEnabled": false
+    }
+  ],
+  "defaultRole": {
+    "composite": true,
+    "name": "default-roles-hegemony"
+  },
+  "displayName": "Amphictyon Networks",
+  "duplicateEmailsAllowed": false,
+  "editUsernameAllowed": false,
+  "enabled": true,
+  "failureFactor": 5,
+  "groups": [
+    {
+      "name": "Amphictyon-Admins",
+      "path": "/Amphictyon-Admins",
+      "subGroups": []
+    },
+    {
+      "name": "Amphictyon-Engineers",
+      "path": "/Amphictyon-Engineers",
+      "subGroups": []
+    },
+    {
+      "name": "Amphictyon-NOC",
+      "path": "/Amphictyon-NOC",
+      "subGroups": []
+    },
+    {
+      "name": "Amphictyon-Approvers",
+      "path": "/Amphictyon-Approvers",
+      "subGroups": []
+    },
+    {
+      "name": "Compliance",
+      "path": "/Compliance",
+      "subGroups": []
+    },
+    {
+      "name": "Athens-Admins",
+      "path": "/Athens-Admins",
+      "subGroups": []
+    },
+    {
+      "name": "Sparta-Admins",
+      "path": "/Sparta-Admins",
+      "subGroups": []
+    }
+  ],
+  "loginTheme": "hegemony",
+  "loginWithEmailAllowed": false,
+  "maxDeltaTimeSeconds": 43200,
+  "maxFailureWaitSeconds": 900,
+  "minimumQuickLoginWaitSeconds": 60,
+  "offlineSessionIdleTimeout": 2592000,
+  "passwordPolicy": "length(12) and maxLength(128) and notUsername and notEmail and passwordHistory(5)",
+  "permanentLockout": false,
+  "quickLoginCheckMilliSeconds": 1000,
+  "realm": "hegemony",
+  "registrationAllowed": false,
+  "rememberMe": false,
+  "resetPasswordAllowed": false,
+  "roles": {
+    "realm": [
+      {
+        "composite": false,
+        "description": "Full administrative access",
+        "name": "admin"
+      },
+      {
+        "composite": false,
+        "description": "Builds flows and runs them",
+        "name": "editor"
+      },
+      {
+        "composite": false,
+        "description": "Runs flows and controls runs",
+        "name": "operator"
+      },
+      {
+        "composite": false,
+        "description": "Approves or rejects approval requests",
+        "name": "approver"
+      },
+      {
+        "composite": false,
+        "description": "Read-only access with audit visibility",
+        "name": "auditor"
+      },
+      {
+        "composite": false,
+        "description": "Basic read-only access",
+        "name": "viewer"
+      },
+      {
+        "composite": true,
+        "composites": {
+          "realm": [
+            "viewer"
+          ]
+        },
+        "description": "Default roles of every user",
+        "name": "default-roles-hegemony"
+      }
+    ]
+  },
+  "sslRequired": "external",
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "users": [
+    {
+      "credentials": [
+        {
+          "temporary": false,
+          "type": "password",
+          "value": "${HEGEMONY_DEMO_PASSWORD}"
+        }
+      ],
+      "email": "admin@amphictyon.example",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Zeus",
+      "groups": [
+        "/Amphictyon-Admins"
+      ],
+      "id": "8c0fcd3e-472b-5713-8b09-d403f6d60565",
+      "lastName": "admin",
+      "realmRoles": [
+        "admin",
+        "default-roles-hegemony"
+      ],
+      "username": "admin"
+    },
+    {
+      "credentials": [
+        {
+          "temporary": false,
+          "type": "password",
+          "value": "${HEGEMONY_DEMO_PASSWORD}"
+        }
+      ],
+      "email": "engineer@amphictyon.example",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Daedalus",
+      "groups": [
+        "/Amphictyon-Engineers"
+      ],
+      "id": "850dd866-6b18-5570-aa55-0fd8a3471dc9",
+      "lastName": "engineer",
+      "realmRoles": [
+        "default-roles-hegemony"
+      ],
+      "username": "engineer"
+    },
+    {
+      "credentials": [
+        {
+          "temporary": false,
+          "type": "password",
+          "value": "${HEGEMONY_DEMO_PASSWORD}"
+        }
+      ],
+      "email": "noc@amphictyon.example",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Argus",
+      "groups": [
+        "/Amphictyon-NOC"
+      ],
+      "id": "5e62f8ae-c79e-53db-b524-34294fca243e",
+      "lastName": "noc",
+      "realmRoles": [
+        "default-roles-hegemony"
+      ],
+      "username": "noc"
+    },
+    {
+      "credentials": [
+        {
+          "temporary": false,
+          "type": "password",
+          "value": "${HEGEMONY_DEMO_PASSWORD}"
+        }
+      ],
+      "email": "approver@amphictyon.example",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Themis",
+      "groups": [
+        "/Amphictyon-Approvers"
+      ],
+      "id": "c1f1b280-b021-51cb-85fc-afdda724896b",
+      "lastName": "approver",
+      "realmRoles": [
+        "default-roles-hegemony"
+      ],
+      "username": "approver"
+    },
+    {
+      "credentials": [
+        {
+          "temporary": false,
+          "type": "password",
+          "value": "${HEGEMONY_DEMO_PASSWORD}"
+        }
+      ],
+      "email": "auditor@amphictyon.example",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Clio",
+      "groups": [
+        "/Compliance"
+      ],
+      "id": "af1da13b-6a02-5df5-a3fc-8c120d64d618",
+      "lastName": "auditor",
+      "realmRoles": [
+        "default-roles-hegemony"
+      ],
+      "username": "auditor"
+    },
+    {
+      "credentials": [
+        {
+          "temporary": false,
+          "type": "password",
+          "value": "${HEGEMONY_DEMO_PASSWORD}"
+        }
+      ],
+      "email": "athens-admin@amphictyon.example",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Pericles",
+      "groups": [
+        "/Athens-Admins"
+      ],
+      "id": "0f7b58d8-fa2f-56ff-9715-c89621a38b91",
+      "lastName": "athens-admin",
+      "realmRoles": [
+        "default-roles-hegemony"
+      ],
+      "username": "athens-admin"
+    },
+    {
+      "credentials": [
+        {
+          "temporary": false,
+          "type": "password",
+          "value": "${HEGEMONY_DEMO_PASSWORD}"
+        }
+      ],
+      "email": "sparta-admin@amphictyon.example",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Leonidas",
+      "groups": [
+        "/Sparta-Admins"
+      ],
+      "id": "29cac6d0-712a-5ba7-b3cf-b5893a0e511e",
+      "lastName": "sparta-admin",
+      "realmRoles": [
+        "default-roles-hegemony"
+      ],
+      "username": "sparta-admin"
+    }
+  ],
+  "verifyEmail": false,
+  "waitIncrementSeconds": 60
+}

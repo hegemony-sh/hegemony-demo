@@ -1,0 +1,21 @@
+# SPDX-FileCopyrightText: 2026 Rexonix s.r.o.
+# SPDX-FileContributor: Jakub Trávník <jakub.travnik@gmail.com>
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+# typos configuration - https://github.com/crate-ci/typos
+# Add false positives here, each with the reason.
+
+[files]
+extend-exclude = [
+    "*.lock",
+    ".venv/",
+    "LICENSES/",
+    "LICENSE",
+    # The banned-word list: names spelled on purpose, which typos "corrects".
+    "tests/test_theme_lint.py",
+]
+
+[default.extend-words]
+# Olympia's site code oly1, which typos sees as "oly" once it strips the digit.
+oly = "oly"
