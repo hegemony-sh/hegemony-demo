@@ -13,6 +13,8 @@ __pycache__/
 SHA256SUMS
 
 # Local runtime state the installer and the overlay write: the generated login
-# password, fetched plugin wheels, the rendered Keycloak realm.
+# password, fetched plugin wheels and lab inventory, the rendered Keycloak realm.
 deploy/compose/.local/
 deploy/compose/plugin-wheels/
+deploy/lab/inventory/
+deploy/lab/inventory.ref

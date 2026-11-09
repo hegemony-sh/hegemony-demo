@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from pathlib import Path
 from typing import Any
 
 import yaml
@@ -22,7 +23,7 @@ from .stories import StoryOutput, render_stories
 BUNDLE_SCHEMA_VERSION = 3
 # The lab's Gitea repository the git inventory provider reads planned sites from.
 INVENTORY_REPOSITORY_NAME = "lab-inventory"
-# Where the lab's Gitea seed puts dist/inventory/ inside that repository.
+# Where the lab's Gitea seed puts the pinned inventory inside that repository.
 INVENTORY_PATH = "inventory"
 
 # Fixed, published demo credentials of the lab (see lab.py).
@@ -448,44 +449,90 @@ def demo_env(model: Model) -> str:
 # --------------------------------------------------------------------------- inventory
 
 
-def git_inventory(model: Model) -> dict[str, str]:
-    files: dict[str, str] = {}
+def inventory_documents(model: Model) -> dict[str, dict[str, Any] | None]:
+    """The lab's Git inventory, keyed by path under the inventory root.
+
+    The demo does not write these: the lab seeds its Gitea from a pinned tag of
+    the inventory repository (platform.env). `demo-gen --check-inventory`
+    compares a checkout of that tag with them. None is an empty `.gitkeep`.
+    """
+    documents: dict[str, dict[str, Any] | None] = {}
     for site in model.sites:
         if site.source != "git":
             continue
         org = model.org(site.org)
-        files[f"dist/inventory/sites/{site.code}/{site.code}.yaml"] = _header(model) + dump_yaml(
-            {
-                "schema_version": 1,
-                "kind": "site",
-                "external_id": site.code,
-                "name": site.name,
-                "description": f"{site.group.capitalize()} site of {org.name}, {site.status}.",
-                "location": f"{org.region or ''}, {model.region_root}".strip(", "),
-                "tags": {"group": site.group, "status": site.status},
-            }
-        )
+        documents[f"sites/{site.code}/{site.code}.yaml"] = {
+            "schema_version": 1,
+            "kind": "site",
+            "external_id": site.code,
+            "name": site.name,
+            "description": f"{site.group.capitalize()} site of {org.name}, {site.status}.",
+            "location": f"{org.region or ''}, {model.region_root}".strip(", "),
+            "tags": {"group": site.group, "status": site.status},
+        }
         for device in model.devices:
             if device.site != site.code:
                 continue
-            files[f"dist/inventory/devices/{device.name}.yaml"] = _header(model) + dump_yaml(
-                {
-                    "schema_version": 1,
-                    "kind": "device",
-                    "external_id": device.name,
-                    "name": device.name,
-                    "mgmt_host": device.mgmt_host,
-                    "platform": device.platform,
-                    "attributes": device_attributes(device),
-                    "site": site.code,
-                    "role": device.role,
-                    "tags": [device.role, site.status],
-                }
-            )
-    for path, document in catalog_files(model.catalog).items():
-        target = f"dist/inventory/{path}"
-        files[target] = "" if document is None else _header(model) + dump_yaml(document)
-    return files
+            documents[f"devices/{device.name}.yaml"] = {
+                "schema_version": 1,
+                "kind": "device",
+                "external_id": device.name,
+                "name": device.name,
+                "mgmt_host": device.mgmt_host,
+                "platform": device.platform,
+                "attributes": device_attributes(device),
+                "site": site.code,
+                "role": device.role,
+                "tags": [device.role, site.status],
+            }
+    documents.update(catalog_files(model.catalog))
+    return documents
+
+
+def _same(actual: Any, expected: Any) -> bool:
+    """Equal as data, type for type: `1` is not `true`, and `1.0` is not `1`.
+
+    Mappings compare by key, whatever their order; lists compare item by item.
+    """
+    if type(actual) is not type(expected):
+        return False
+    if isinstance(expected, dict):
+        return actual.keys() == expected.keys() and all(
+            _same(actual[key], value) for key, value in expected.items()
+        )
+    if isinstance(expected, list):
+        return len(actual) == len(expected) and all(
+            _same(a, e) for a, e in zip(actual, expected, strict=True)
+        )
+    return actual == expected
+
+
+def check_inventory(model: Model, tree: Path) -> list[str]:
+    """What differs between an inventory tree and what the spec expects.
+
+    Records are compared as data, so the inventory repository may carry its own
+    comments and formatting. Any other file under the tree is reported too: the
+    Git inventory plugin reads everything there.
+    """
+    expected = inventory_documents(model)
+    if not tree.is_dir():
+        return [f"missing: {tree}"]
+    found = {p.relative_to(tree).as_posix() for p in tree.rglob("*") if p.is_file()}
+    problems: list[str] = []
+    for path, document in sorted(expected.items()):
+        target = tree / path
+        if path not in found:
+            problems.append(f"missing: {path}")
+        elif document is not None:
+            try:
+                actual = yaml.safe_load(target.read_text(encoding="utf-8"))
+            except (yaml.YAMLError, OSError, UnicodeError) as exc:
+                problems.append(f"unreadable: {path}: {exc}")
+                continue
+            if not _same(actual, document):
+                problems.append(f"differs: {path}")
+    problems.extend(f"extra:   {p}" for p in sorted(found - set(expected)))
+    return problems
 
 
 # --------------------------------------------------------------------------- docs
@@ -557,7 +604,6 @@ def render_all(model: Model, stories_root: Any) -> dict[str, str]:
     files["dist/keycloak/realm.json"] = dump_json(keycloak_realm(model))
     files["dist/logins.txt"] = login_table(model)
     files["dist/demo.env"] = demo_env(model)
-    files.update(git_inventory(model))
     files["dist/lab/compose.yml"] = head + dump_yaml(labmod.compose(model))
     files["dist/lab/checks.txt"] = labmod.checks(model, GENERATED_NOTE.format(spec=model.spec_id))
     for node in model.lab.routers():

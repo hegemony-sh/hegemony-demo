@@ -43,15 +43,30 @@ Then:
    | `task test` | `uv run pytest` |
    | `task reuse` | `uv run reuse lint` |
 
-   The Check workflow also runs gitleaks, zizmor on the workflows and
-   commitlint on the pull request's commits. The pre-commit hooks run all of
-   these on the files you commit, plus YAML, JSON, TOML and `pyproject.toml`
-   validation, so `task setup` once and the hooks catch them before CI does.
+   The Check workflow also runs gitleaks, zizmor on the workflows,
+   commitlint on the pull request's commits, and the inventory check below.
+   The pre-commit hooks run the first three on the files you commit, plus
+   YAML, JSON, TOML and `pyproject.toml` validation, so `task setup` once and
+   the hooks catch them before CI does.
 4. Commit the source change and the regenerated `dist/` and `docs/_generated/`
    together.
 
 Never edit `dist/` or `docs/_generated/` by hand: `uv run demo-gen --check`
 fails in CI when they differ from what the generator writes.
+
+The lab's Git inventory (the planned site, its devices and the service
+catalogue) lives in
+[hegemony-demo-inventory](https://github.com/hegemony-sh/hegemony-demo-inventory),
+and `platform.env` pins a release tag of it. To change it:
+
+1. Change `inventory/` there (and `spec/basic.yaml` here, if the spec changes
+   too), and tag a release there.
+2. Pin the tag in `platform.env` (`HEGEMONY_INVENTORY_REF`).
+3. Check: `deploy/lab/fetch-inventory.sh` and then
+   `uv run demo-gen --check-inventory deploy/lab/inventory`. CI runs the same.
+
+To try an untagged change, set `HEGEMONY_INVENTORY_REPO` and
+`HEGEMONY_INVENTORY_REF` (a branch works too) before `task lab:up`.
 
 Names from the demo's theme (the operator, the cities, the people) belong in
 `spec/basic.yaml` and in prose only. Flow names, secret names, file names,
@@ -114,7 +129,8 @@ platform 1.0.0, `v1.0.0+demo.2` for a later demo-only fix.
    to, and its weekly runs always use, the newest published releases,
    whatever `platform.env` pins.
 3. Push the tag. The release workflow checks it
-   (`scripts/release_check.py`), stamps `install.sh` with it, publishes
+   (`scripts/release_check.py`) and the pinned inventory tag
+   (`demo-gen --check-inventory`), stamps `install.sh` with it, publishes
    `install.sh` and `SHA256SUMS`, and starts the E2E workflow on the
    published release: its own pins, and the published installer run with no
    login. hegemony.sh/install.sh serves the newest release's `install.sh`.

@@ -107,8 +107,9 @@ models:
   srv: {vendor: Dell, model: PowerEdge R660, platform: linux}
 
 # source: bundle (local inventory in the org's bundle) or git (the git
-# inventory provider reads it from the lab's Gitea, which the lab seeds with
-# dist/inventory/).
+# inventory provider reads it from the lab's Gitea, which the lab seeds from
+# the hegemony-demo-inventory tag platform.env pins; CI checks that tag
+# against this spec with demo-gen --check-inventory).
 sites:
   - {code: dlp1, name: Delphi, org: default, group: datacenter, status: active, profile: dc, source: bundle}
   - {code: oly1, name: Olympia, org: default, group: datacenter, status: planned, profile: tenant-dc, source: git}
@@ -153,7 +154,7 @@ ip_plan:
   loopbacks: 10.255.0.0/24
 
 # The service catalogue: two repository-defined inventory types, services and
-# the addresses they answer on, written to dist/inventory/ next to the planned
+# the addresses they answer on, in the Git inventory next to the planned
 # sites. When enabled, the s4 form picks a service and one of its addresses
 # from them instead of typing both. Addresses must be hosts in
 # lab.service_prefixes; exactly one per service is primary (the form default).

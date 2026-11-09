@@ -4,9 +4,9 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
-# Bring the lab up, or back up: build the router and server images, start
-# everything, wait until every container is healthy and Gitea is seeded, then
-# check that the network converged. Safe to run again.
+# Bring the lab up, or back up: fetch the pinned inventory, build the router
+# and server images, start everything, wait until every container is healthy
+# and Gitea is seeded, then check that the network converged. Safe to run again.
 set -euo pipefail
 
 lab_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -14,6 +14,8 @@ lab="$lab_dir/lab.sh"
 
 log() { echo "[hegemony-lab] $*"; }
 die() { echo "[hegemony-lab] ERROR: $*" >&2; exit 1; }
+
+"$lab_dir/fetch-inventory.sh"
 
 log "Starting the lab (routers, servers, Gitea, Mailpit) ..."
 attempt=1

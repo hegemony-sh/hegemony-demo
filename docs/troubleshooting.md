@@ -97,8 +97,9 @@ them restarting. `task up` is safe to run again.
   the platform's sandbox, which pulls it from Docker Hub the first time; that
   needs Internet access from Docker.
 - **Olympia has no devices.** The Git inventory provider reads the lab's
-  Gitea (`netops/inventory`, <http://localhost:3000>), which the lab seeds from
-  `dist/inventory/` at every start. Check `task lab:logs -- gitea-seed`.
+  Gitea (`netops/inventory`, <http://localhost:3000>), which the lab seeds at
+  every start from the hegemony-demo-inventory tag `platform.env` pins
+  (fetched into `deploy/lab/inventory/`). Check `task lab:logs -- gitea-seed`.
 
 ## Starting over and removing the demo
 
