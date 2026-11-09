@@ -124,7 +124,7 @@ tasks:
       - uv run reuse lint
 
   ci:
-    desc: Everything CI runs, locally
+    desc: The Check workflow's generation, lint, type, test and licensing checks, locally
     cmds:
       - task: gen:check
       - task: lint

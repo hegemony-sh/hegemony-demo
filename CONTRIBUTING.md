@@ -32,7 +32,8 @@ Then:
 
 1. Edit `spec/basic.yaml`, a story under `stories/`, or the generator.
 2. Regenerate: `uv run demo-gen`.
-3. Check: `task ci`, which runs what the Check workflow runs:
+3. Check: `task ci`, which runs the local generation, lint, type, test and
+   licensing checks:
 
    | Task | Runs |
    | --- | --- |
@@ -42,9 +43,10 @@ Then:
    | `task test` | `uv run pytest` |
    | `task reuse` | `uv run reuse lint` |
 
-   The pre-commit hooks run the same checks on the files you commit, plus
-   YAML, JSON, TOML and `pyproject.toml` validation, zizmor on the workflows,
-   gitleaks and commitlint.
+   The Check workflow also runs gitleaks, zizmor on the workflows and
+   commitlint on the pull request's commits. The pre-commit hooks run all of
+   these on the files you commit, plus YAML, JSON, TOML and `pyproject.toml`
+   validation, so `task setup` once and the hooks catch them before CI does.
 4. Commit the source change and the regenerated `dist/` and `docs/_generated/`
    together.
 
