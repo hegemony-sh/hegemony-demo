@@ -32,7 +32,19 @@ Then:
 
 1. Edit `spec/basic.yaml`, a story under `stories/`, or the generator.
 2. Regenerate: `uv run demo-gen`.
-3. Check: `task ci` (or the commands it runs, listed in `Taskfile.yml`).
+3. Check: `task ci`, which runs what the Check workflow runs:
+
+   | Task | Runs |
+   | --- | --- |
+   | `task gen:check` | `uv run demo-gen --check` |
+   | `task lint` | `ruff check`, `ruff format --check`, `typos` (reports only), `shellcheck` on every shell script |
+   | `task types` | `uv run ty check` (generator/, scripts/, tests/) |
+   | `task test` | `uv run pytest` |
+   | `task reuse` | `uv run reuse lint` |
+
+   The pre-commit hooks run the same checks on the files you commit, plus
+   YAML, JSON, TOML and `pyproject.toml` validation, zizmor on the workflows,
+   gitleaks and commitlint.
 4. Commit the source change and the regenerated `dist/` and `docs/_generated/`
    together.
 
@@ -48,8 +60,13 @@ come back.
 ## Commit messages
 
 Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/),
-with a scope from [.commitlintrc.yaml](.commitlintrc.yaml), for example
-`feat(generator): add the device-config renderer`.
+as in the other Hegemony repositories: `type(scope): subject`, for example
+`feat(generator): add the device-config renderer`. The scope is free-form but
+has one shape, which [commitlint.config.mjs](commitlint.config.mjs) checks:
+lower-case letters, digits and single dashes, at most 20 characters, several
+separated by commas without spaces (`stories,docs`). Common scopes are
+`generator`, `spec`, `stories`, `lab`, `installer`, `demo`, `docs`, `ci` and
+`deps`. Mark a breaking change with `!` or a `BREAKING CHANGE:` footer.
 
 ## Releasing
 
@@ -59,15 +76,18 @@ platform 1.0.0, `v1.0.0+demo.2` for a later demo-only fix.
 1. Pin the newest published releases: `python3 scripts/latest_release.py
    write` sets the platform release in `platform.env` and the plugin wheels
    that release was built with. The release workflow refuses a tag whose pins
-   are older (`latest_release.py check`).
-2. Set `inventory.ref` in `spec/basic.yaml` to the new tag, run
-   `uv run demo-gen`, and commit.
-3. Run the E2E workflow on that commit. Its manual and weekly runs always use
-   the newest published releases, whatever `platform.env` pins; choose
-   `pinned` to run the pins instead.
-4. Push the tag. The release workflow checks it
-   (`scripts/release_check.py`), stamps `install.sh` with it and publishes
-   `install.sh` and `SHA256SUMS`.
+   are older (`latest_release.py check`). When the platform publishes a
+   release, the **Adopt platform release** workflow does this step for you:
+   it opens a pull request on `platform/<version>` and starts the Check and
+   E2E workflows on it.
+2. Run the E2E workflow on that commit with `pinned`. Its manual runs default
+   to, and its weekly runs always use, the newest published releases,
+   whatever `platform.env` pins.
+3. Push the tag. The release workflow checks it
+   (`scripts/release_check.py`), stamps `install.sh` with it, publishes
+   `install.sh` and `SHA256SUMS`, and starts the E2E workflow on the
+   published release: its own pins, and the published installer run with no
+   login. hegemony.sh/install.sh serves the newest release's `install.sh`.
 
 ## Licensing and DCO
 
