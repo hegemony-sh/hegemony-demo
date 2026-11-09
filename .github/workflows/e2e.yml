@@ -29,6 +29,13 @@ on:
           its plugin wheels), pinned (what platform.env pins), or a version
         required: false
         default: latest
+      release_tag:
+        description: >-
+          A published demo release to check as it was released (its pins and
+          its installer). The release workflow sets it: a release it creates
+          starts no release-event workflow.
+        required: false
+        default: ""
   release:
     types: [published]
   schedule:
@@ -57,11 +64,11 @@ jobs:
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
           df -h /
 
-      # A schedule has no inputs, so it runs latest; a published release runs
-      # its own pins.
+      # A schedule has no inputs, so it runs latest; a published demo release
+      # runs its own pins.
       - name: Choose the platform release
         env:
-          WANTED: ${{ github.event_name == 'release' && 'pinned' || inputs.platform_version || 'latest' }}
+          WANTED: ${{ (github.event_name == 'release' || inputs.release_tag != '') && 'pinned' || inputs.platform_version || 'latest' }}
           HEGEMONY_GITHUB_TOKEN: ${{ secrets.REPOS_READ_TOKEN }}
         run: |
           case "$WANTED" in
@@ -134,7 +141,7 @@ jobs:
 
   public:
     name: Install the released installer with no login
-    if: github.event_name == 'release'
+    if: github.event_name == 'release' || inputs.release_tag != ''
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -143,7 +150,7 @@ jobs:
       # Exactly what a user runs: the release asset, no token, no docker login.
       - name: curl | sh
         env:
-          TAG: ${{ github.event.release.tag_name }}
+          TAG: ${{ github.event.release.tag_name || inputs.release_tag }}
           REPO: ${{ github.repository }}
         run: |
           curl -fsSL "https://github.com/$REPO/releases/download/$TAG/install.sh" | sh -s -- --dir "$RUNNER_TEMP/demo"
