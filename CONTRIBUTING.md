@@ -145,14 +145,24 @@ separated by commas without spaces (`stories,docs`). Common scopes are
 The [Scorecard workflow](.github/workflows/scorecard.yml) runs on `main`, weekly,
 and on manual dispatch. It uses the default GitHub token and OIDC to publish
 results, and uploads findings to code scanning. It does not run on pull
-requests or require an additional account token. Its first published result
-is available after the workflow merges to `main`.
+requests or require an additional account token. Its published result is
+behind the README's Scorecard badge.
 
 After changing repository rulesets, dispatch Scorecard manually: the
 `branch_protection_rule` trigger covers classic branch protection, not ruleset
 changes. Review individual findings in context; the aggregate score is not a
-security certification. A public Scorecard badge can be added once the first
-analysis publishes successfully.
+security certification.
+
+Two Pinned-Dependencies findings are expected and stay as they are:
+
+- `deploy/compose/Dockerfile.plugins` builds on `BASE_IMAGE`, the platform
+  image Compose passes in at the version `platform.env` pins. That pin, not
+  the Dockerfile, decides the image.
+- The E2E workflow's `public` job runs `curl | sh` on purpose: it tests
+  exactly what a user runs, against this repository's own release asset.
+
+The lab's own base images are pinned by digest, and Renovate updates those
+digests together with the GitHub Actions pins.
 
 ## Releasing
 

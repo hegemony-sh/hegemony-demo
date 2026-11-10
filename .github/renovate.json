@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "description": "Renovate maintains only the GitHub Actions pins here, as in the plugin repositories: every `uses:` is pinned to a commit SHA, and without something bumping the SHAs they rot silently. Python dependencies are out of Renovate's scope (Dependabot security updates cover uv.lock). Its commits are chore(deps).",
+  "description": "Renovate maintains the GitHub Actions pins, as in the plugin repositories, and the lab's Dockerfile base images: every `uses:` is pinned to a commit SHA and every lab base image to a digest, and without something bumping them they rot silently. Python dependencies are out of Renovate's scope (Dependabot security updates cover uv.lock). Its commits are chore(deps).",
   "extends": ["config:recommended", ":semanticCommits", ":semanticCommitTypeAll(chore)"],
   "timezone": "Etc/UTC",
   "schedule": ["before 05:00 on monday"],
@@ -8,8 +8,11 @@
   "labels": ["dependencies"],
   "prConcurrentLimit": 3,
   "prHourlyLimit": 2,
-  "enabledManagers": ["github-actions"],
+  "enabledManagers": ["github-actions", "dockerfile"],
   "github-actions": {
+    "pinDigests": true
+  },
+  "dockerfile": {
     "pinDigests": true
   }
 }
