@@ -7,7 +7,14 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
 # Hegemony demo
 
-A small, self-contained demo of [Hegemony](https://github.com/hegemony-sh/hegemony),
+[![License: AGPL-3.0-or-later](https://img.shields.io/badge/License-AGPL--3.0--or--later-blue.svg)](LICENSE)
+[![Check](https://github.com/hegemony-sh/hegemony-demo/actions/workflows/check.yml/badge.svg?branch=main&event=push)](https://github.com/hegemony-sh/hegemony-demo/actions/workflows/check.yml)
+
+[Website](https://hegemony.sh/) · [Walkthrough](docs/walkthrough.md) ·
+[Lab map](docs/_generated/topology.md) · [Troubleshooting](docs/troubleshooting.md) ·
+[Demo inventory](https://github.com/hegemony-sh/hegemony-demo-inventory)
+
+A small, self-contained demo of [Hegemony](https://hegemony.sh/),
 the network automation platform. One command starts the platform on your
 machine next to a small lab: a fictional operator's network of simulated
 routers and servers, a Git server and a mail sink. Five short stories show
@@ -45,7 +52,11 @@ images (a few GB, the first time takes several minutes), checks the result
 (one PASS or FAIL line per service, the lab network, Gitea, the login server,
 the UI and the mail sink, without running a flow), and prints where to log
 in. To see the options first: `curl -fsSL https://hegemony.sh/install.sh | sh -s -- --help`.
-To only check your machine: `... | sh -s -- --preflight`.
+To only check your machine before installing:
+
+```sh
+curl -fsSL https://hegemony.sh/install.sh | sh -s -- --preflight
+```
 
 When it is done:
 
@@ -63,33 +74,28 @@ approves them, `engineer` builds flows, `auditor` reads everything, and
 Everything listens on 127.0.0.1 only. The demo is for your own machine: do not
 expose it to a network.
 
+## Try your first change
+
+Open <http://localhost:8080> and log in as **`noc`** with the generated
+password. Follow [A change with a second pair of eyes](docs/walkthrough.md#1-a-change-with-a-second-pair-of-eyes):
+start **Announce service prefix**, then approve it as **`approver`** in a
+private browser window. Inspect the before-and-after evidence and the result
+in the mail sink at <http://localhost:8025>. The walkthrough includes the exact steps and expected results.
+
 ## The stories
 
 The [45-minute walkthrough](docs/walkthrough.md) tells all five.
 
-1. **A change with a second pair of eyes.** `noc` asks to advertise a service
-   address on two live routers. The run stops until `approver` (and only an
-   approver) agrees. Hegemony records the configuration before and after,
-   fails the run unless the change really happened, checks that the core
-   router learned the route, and mails the result. The audit log says who did
-   what.
-2. **The run that outlives the worker.** A maintenance window drains the edge
-   routers, watches them, and then waits for someone to close the window,
-   with a deadline. Restart the workers while it waits for that decision: the
-   run carries on where it was, deadline and all.
-3. **One standard, many cities.** Athens and Sparta run the one standards
-   check the shared standards organization owns. The shared standards apply to both, Athens' own time server wins
-   for Athens, each customer's admin sees only their own city, and the
-   auditor sees both and can change nothing.
-4. **The service as code.** OpenTofu declares which edge routers carry a
-   service, and Hegemony keeps the state. The plan compares with that state:
-   a new service or a moved address waits for an approver (the flow removes
-   the old address), the same values again change nothing, and a router
-   changed by hand is found against the state and repaired after approval. A
-   second plan finds nothing left, and the upstream provider receives the
-   route.
-5. **Every change in Git.** An Ansible playbook commits every router's running
-   configuration to the lab's Gitea, and only when something changed.
+1. **A change with a second pair of eyes.** Request a router change as `noc`,
+   approve it as `approver`, and inspect the evidence and audit trail.
+2. **The run that outlives the worker.** Restart workers during a maintenance
+   window and see the run resume with its pending decision and deadline intact.
+3. **One standard, many cities.** Run shared standards for Athens and Sparta,
+   with customer-specific settings and separate access for each city's admin.
+4. **The service as code.** Use OpenTofu to plan and approve a service change,
+   detect drift, and confirm that a second plan needs no changes.
+5. **Every change in Git.** Use Ansible to back up router configurations to
+   the lab's Gitea, committing only when something changed.
 
 ## Day to day
 
@@ -121,16 +127,40 @@ uv run demo-gen           # write dist/ and docs/_generated/
 uv run demo-gen --check   # fail if they are not current
 ```
 
-The platform version the demo runs is pinned in one file,
-[`platform.env`](platform.env), together with the plugin wheels the demo adds;
-`python3 scripts/latest_release.py write` moves both to the newest published
-platform release. Demo releases are tagged after it: `v1.0.0`
-runs platform 1.0.0, and `v1.0.0+demo.2` is a later fix of the demo for the
-same platform.
+## Versions and related repositories
 
-[CONTRIBUTING.md](CONTRIBUTING.md) says how to change the demo. A larger demo
+[`platform.env`](platform.env) pins the platform release, the extra plugin
+wheels and the inventory release. Demo releases follow the platform version:
+`v1.0.0` runs platform 1.0.0, and `v1.0.0+demo.2` is a later demo fix for the
+same platform. These names illustrate the release convention; available
+releases are listed on the [Releases page](https://github.com/hegemony-sh/hegemony-demo/releases).
+
+The generator supplies the demo's organizations, users, flows and initial
+inventory. The separately versioned
+[demo inventory](https://github.com/hegemony-sh/hegemony-demo-inventory)
+supplies Olympia's planned devices and the service catalogue. The lab copies
+that pinned inventory into Gitea, and the Git inventory provider syncs it
+into Hegemony. A change to that repository's `main` does not change an
+already pinned demo.
+
+See [Contributing](CONTRIBUTING.md#workflow) for generator development and
+the inventory pin, and [Releasing](CONTRIBUTING.md#releasing) for the platform
+and plugin pins. A larger demo
 can start from this one with `extends: basic.yaml` in its own spec.
 
-## Licence
+## Contributing, security and licence
 
-AGPL-3.0-or-later. See [LICENSING.md](LICENSING.md).
+- Report installation problems and request improvements through
+  [GitHub Issues](https://github.com/hegemony-sh/hegemony-demo/issues).
+- Read [Contributing](CONTRIBUTING.md) before opening a pull request. Commits
+  follow Conventional Commits and require a DCO sign-off (`git commit -s`).
+- Report vulnerabilities privately as described in [Security](SECURITY.md).
+- Participation follows the [Code of Conduct](CODE_OF_CONDUCT.md).
+- Licensed under `AGPL-3.0-or-later`; see [Licensing](LICENSING.md).
+
+The [Check workflow](https://github.com/hegemony-sh/hegemony-demo/actions/workflows/check.yml)
+validates the source, generated data, pinned inventory and REUSE licensing
+metadata. The [Scorecard workflow](https://github.com/hegemony-sh/hegemony-demo/actions/workflows/scorecard.yml)
+checks repository and supply-chain practices after changes to `main` and
+weekly. Its findings appear in the repository's code-scanning results;
+they are not a security certification of the running demo.

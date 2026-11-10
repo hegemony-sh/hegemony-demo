@@ -140,6 +140,20 @@ separated by commas without spaces (`stories,docs`). Common scopes are
 `generator`, `spec`, `stories`, `lab`, `installer`, `demo`, `docs`, `ci` and
 `deps`. Mark a breaking change with `!` or a `BREAKING CHANGE:` footer.
 
+## Repository security checks
+
+The [Scorecard workflow](.github/workflows/scorecard.yml) runs on `main`, weekly,
+and on manual dispatch. It uses the default GitHub token and OIDC to publish
+results, and uploads findings to code scanning. It does not run on pull
+requests or require an additional account token. Its first published result
+is available after the workflow merges to `main`.
+
+After changing repository rulesets, dispatch Scorecard manually: the
+`branch_protection_rule` trigger covers classic branch protection, not ruleset
+changes. Review individual findings in context; the aggregate score is not a
+security certification. A public Scorecard badge can be added once the first
+analysis publishes successfully.
+
 ## Releasing
 
 Demo releases are tagged after the platform release they run: `v1.0.0` for

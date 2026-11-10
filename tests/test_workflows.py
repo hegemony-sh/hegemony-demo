@@ -10,6 +10,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import yaml
+
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOWS = sorted((ROOT / ".github" / "workflows").glob("*.yml"))
 USES = re.compile(r"^\s*-?\s*uses:\s*(\S+)(.*)$")
@@ -34,5 +36,5 @@ def test_every_action_is_pinned_to_a_commit_sha() -> None:
 
 def test_workflows_default_to_read_only_permissions() -> None:
     for workflow in WORKFLOWS:
-        text = workflow.read_text()
-        assert re.search(r"^permissions:\n\s+contents: read", text, re.M), workflow.name
+        permissions = yaml.safe_load(workflow.read_text()).get("permissions")
+        assert permissions in ({}, {"contents": "read"}), workflow.name
