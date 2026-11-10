@@ -3,8 +3,8 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-# OpenSSF Scorecard follows the public plugin repositories' workflow.
-# The first published analysis is available after this reaches main.
+# OpenSSF Scorecard, the same workflow as the platform and plugin
+# repositories'. The first published analysis appears after this reaches main.
 
 name: Scorecard
 
@@ -30,7 +30,7 @@ permissions: {}
 jobs:
   analysis:
     name: Scorecard Analysis
-    # GitHub-hosted, not CI_RUNNER: with publish_results the Scorecard API
+    # GitHub-hosted on purpose: with publish_results the Scorecard API
     # checks the workflow's shape: an Ubuntu-hosted runner, no containers, and
     # no steps beyond the four actions below.
     runs-on: ubuntu-latest
@@ -64,4 +64,3 @@ jobs:
         uses: github/codeql-action/upload-sarif@ce5e7eeac396d720fe2d802714996c8ce561e311 # v3.39.0
         with:
           sarif_file: results.sarif
-
