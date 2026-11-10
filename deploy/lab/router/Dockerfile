@@ -8,7 +8,8 @@
 # steps drive it like a real router. Built locally by the lab's Compose
 # project; it holds no password (the entrypoint sets it at start).
 # FRR publishes current images on quay.io; FRR_IMAGE swaps the base (a mirror).
-ARG FRR_IMAGE=quay.io/frrouting/frr:9.1.0
+# The default is pinned by digest; Renovate keeps it current.
+ARG FRR_IMAGE=quay.io/frrouting/frr:9.1.0@sha256:f310c2ebb3827fa03b9674ee05e70a7d5eef2123bcc3b475eb2ef14dafcb52b4
 FROM ${FRR_IMAGE}
 
 RUN apk add --no-cache openssh-server shadow \

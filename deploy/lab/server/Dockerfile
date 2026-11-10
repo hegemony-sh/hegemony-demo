@@ -5,8 +5,9 @@
 #
 # A simulated Linux server: Alpine with an SSH server, Python and sudo, so
 # Ansible manages it like any other host. Built locally by the lab's Compose
-# project; it holds no password (the entrypoint sets it at start).
-FROM public.ecr.aws/docker/library/alpine:3.22
+# project; it holds no password (the entrypoint sets it at start). The base is
+# pinned by digest (the multi-architecture index); Renovate keeps it current.
+FROM public.ecr.aws/docker/library/alpine:3.22@sha256:49340b346798875b5592e5d420241f2f9cfba5f47e62ebb1446a1b34734e898f
 
 RUN apk add --no-cache openssh-server python3 sudo iproute2 \
     && sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config \

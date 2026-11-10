@@ -9,6 +9,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/License-AGPL--3.0--or--later-blue.svg)](LICENSE)
 [![Check](https://github.com/hegemony-sh/hegemony-demo/actions/workflows/check.yml/badge.svg?branch=main&event=push)](https://github.com/hegemony-sh/hegemony-demo/actions/workflows/check.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/hegemony-sh/hegemony-demo/badge)](https://scorecard.dev/viewer/?uri=github.com/hegemony-sh/hegemony-demo)
 
 [Website](https://hegemony.sh/) · [Walkthrough](docs/walkthrough.md) ·
 [Lab map](docs/_generated/topology.md) · [Troubleshooting](docs/troubleshooting.md) ·
