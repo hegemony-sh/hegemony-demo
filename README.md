@@ -8,7 +8,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 # Hegemony demo
 
 [![License: AGPL-3.0-or-later](https://img.shields.io/badge/License-AGPL--3.0--or--later-blue.svg)](LICENSE)
-[![Checks](https://github.com/hegemony-sh/hegemony-demo/actions/workflows/check.yml/badge.svg?branch=main&event=push)](https://github.com/hegemony-sh/hegemony-demo/actions/workflows/check.yml)
+[![Check](https://github.com/hegemony-sh/hegemony-demo/actions/workflows/check.yml/badge.svg?branch=main&event=push)](https://github.com/hegemony-sh/hegemony-demo/actions/workflows/check.yml)
 
 [Website](https://hegemony.sh/) · [Walkthrough](docs/walkthrough.md) ·
 [Lab map](docs/_generated/topology.md) · [Troubleshooting](docs/troubleshooting.md) ·
@@ -80,7 +80,7 @@ Open <http://localhost:8080> and log in as **`noc`** with the generated
 password. Follow [A change with a second pair of eyes](docs/walkthrough.md#1-a-change-with-a-second-pair-of-eyes):
 start **Announce service prefix**, then approve it as **`approver`** in a
 private browser window. Inspect the before-and-after evidence and the result
-in Mailpit. The walkthrough includes the exact steps and expected results.
+in the mail sink at <http://localhost:8025>. The walkthrough includes the exact steps and expected results.
 
 ## The stories
 
@@ -143,8 +143,9 @@ that pinned inventory into Gitea, and the Git inventory provider syncs it
 into Hegemony. A change to that repository's `main` does not change an
 already pinned demo.
 
-See [Contributing](CONTRIBUTING.md) for generator development and
-[Releasing](CONTRIBUTING.md#releasing) for updating the pins. A larger demo
+See [Contributing](CONTRIBUTING.md#workflow) for generator development and
+the inventory pin, and [Releasing](CONTRIBUTING.md#releasing) for the platform
+and plugin pins. A larger demo
 can start from this one with `extends: basic.yaml` in its own spec.
 
 ## Contributing, security and licence
@@ -157,7 +158,7 @@ can start from this one with `extends: basic.yaml` in its own spec.
 - Participation follows the [Code of Conduct](CODE_OF_CONDUCT.md).
 - Licensed under `AGPL-3.0-or-later`; see [Licensing](LICENSING.md).
 
-The [Checks workflow](https://github.com/hegemony-sh/hegemony-demo/actions/workflows/check.yml)
+The [Check workflow](https://github.com/hegemony-sh/hegemony-demo/actions/workflows/check.yml)
 validates the source, generated data, pinned inventory and REUSE licensing
 metadata. The [Scorecard workflow](https://github.com/hegemony-sh/hegemony-demo/actions/workflows/scorecard.yml)
 checks repository and supply-chain practices after changes to `main` and
