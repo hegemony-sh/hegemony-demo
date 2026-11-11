@@ -32,11 +32,11 @@ flows:
       graph:
         annotations:
           - color: green
-            height: 520
+            height: 640
             id: note
             kind: text
             position_x: 150.0
-            position_y: -285.0
+            position_y: -405.0
             text: '## **PREPARATION**'
             width: 960
           - color: yellow
@@ -56,13 +56,13 @@ flows:
             text: '## **IMPLEMENTATION**'
             width: 915
           - color: blue
-            height: 340
+            height: 370
             id: note-3
             kind: text
-            position_x: 2730.0
-            position_y: 510.0
+            position_x: 2490.0
+            position_y: 480.0
             text: '## **VERIFICATION**'
-            width: 1380
+            width: 1620
         nodes:
           - id: start
             name: Start
@@ -104,6 +104,7 @@ flows:
             port_anchors:
               failure: SE
               in: S
+              success: N
             position_x: 165
             position_y: -195
             # The apply uses exactly this plan, from the run's shared workspace.
@@ -157,7 +158,7 @@ flows:
             port_anchors:
               else: SE
               error: S
-            position_x: 555
+            position_x: 615
             position_y: -225
             cases:
               - id: c_changed
@@ -344,8 +345,8 @@ flows:
             port_anchors:
               failure: NE
               in: N
-            position_x: 2775
-            position_y: 645
+            position_x: 2535
+            position_y: 630
             target_selectors:
               - type: role
                 role: service_targets
@@ -368,9 +369,9 @@ flows:
             tags:
               phase: VERIFY
             port_anchors:
-              failure: S
-            position_x: 2985
-            position_y: 840
+              failure: N
+            position_x: 2925
+            position_y: 585
             params:
               artifact_step_id: after
               target_role: service_targets
@@ -398,8 +399,8 @@ flows:
               kind: CHECK
             port_anchors:
               failure: NNW
-            position_x: 3180
-            position_y: 645
+            position_x: 3225
+            position_y: 630
             params:
               engine: opentofu
               state: managed
@@ -463,8 +464,8 @@ flows:
             name: Routers left out of the state
             type: terminal
             terminal_status: failure
-            position_x: 600
-            position_y: -480
+            position_x: 705
+            position_y: -540
           - id: in_place
             name: Nothing to change
             type: terminal
