@@ -112,7 +112,7 @@ def test_verify_on_a_terminal_prints_checks_without_a_detail(tmp_path: Path) -> 
     bin_dir.mkdir()
     _stub(bin_dir, "docker", "exit 0")
     _stub(bin_dir, "curl", "exit 0")
-    env = {
+    env: dict[str, str] = {
         **os.environ,
         "PATH": f"{bin_dir}:{os.environ['PATH']}",
         "TERM": "xterm-256color",
