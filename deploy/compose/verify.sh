@@ -32,7 +32,7 @@ result() { # PASS|WARN|FAIL check detail
       WARN) mark="$ui_yellow$ui_s_warn" ;;
       *) mark="$ui_red$ui_s_fail" ;;
     esac
-    printf '   %s%s %-22s %s%s%s\n' "$mark" "$ui_r" "$2" "$ui_d" "$3" "$ui_r"
+    printf '   %s%s %-22s %s%s%s\n' "$mark" "$ui_r" "$2" "$ui_d" "${3:-}" "$ui_r"
   else
     printf '[hegemony-demo] %-4s %s%s\n' "$1" "$2" "${3:+ ($3)}"
   fi

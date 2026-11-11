@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import os
+import pty
 import shutil
 import stat
 import subprocess
@@ -102,3 +103,44 @@ esac""",
     assert "worker" in services, result.stdout
     assert "migrate" not in services, result.stdout
     assert "api" not in services, result.stdout
+
+
+def test_verify_on_a_terminal_prints_checks_without_a_detail(tmp_path: Path) -> None:
+    # On a terminal the checks are drawn with symbols; a check that passes
+    # with no detail ("login server") must not trip `set -u`.
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    _stub(bin_dir, "docker", "exit 0")
+    _stub(bin_dir, "curl", "exit 0")
+    env = {
+        **os.environ,
+        "PATH": f"{bin_dir}:{os.environ['PATH']}",
+        "TERM": "xterm-256color",
+        "LANG": "C.UTF-8",
+        "HEGEMONY_LAB_CONVERGE_SECONDS": "1",
+        "HEGEMONY_PLATFORM_DIR": str(tmp_path / "no-platform"),
+    }
+    env.pop("NO_COLOR", None)
+    controller, terminal = pty.openpty()
+    with subprocess.Popen(
+        ["bash", str(ROOT / "deploy/compose/verify.sh")],
+        env=env,
+        stdin=subprocess.DEVNULL,
+        stdout=terminal,
+        stderr=terminal,
+    ) as process:
+        os.close(terminal)
+        output = b""
+        while True:
+            try:
+                chunk = os.read(controller, 4096)
+            except OSError:
+                break
+            if not chunk:
+                break
+            output += chunk
+        process.wait(timeout=120)
+    os.close(controller)
+    text = output.decode()
+    assert "unbound variable" not in text, text
+    assert "\033[32m✔\033[0m login server" in text, text
