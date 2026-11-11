@@ -60,14 +60,20 @@ for pair in $wheels; do
   [[ "$dist" =~ ^[a-z0-9][a-z0-9-]*$ ]] || die "cannot read a distribution name from $file"
   src="$(source_of "$dist")"
   echo "plugin wheel $dist: building from ${src#"$plugins_parent"/}"
-  # As the calling user, so the wheel in plugin-wheels/ is theirs to remove.
-  docker run --rm --pull never \
-    --user "$(id -u):$(id -g)" \
-    --entrypoint uv \
+  # The wheel is built inside the container and comes out as a tar stream on
+  # standard output, unpacked here by the calling user. Nothing is written
+  # through a bind mount, so the container user needs no write access to the
+  # host: that also holds under rootless Docker, where a host UID maps to a
+  # different one inside the container.
+  # shellcheck disable=SC2016 # expanded by the container's shell, not here
+  if ! docker run --rm --pull never \
+    --entrypoint sh \
     -e HOME=/tmp -e UV_CACHE_DIR=/tmp/uv-cache -e UV_NO_CONFIG=1 \
-    -v "$src:/src:ro" -v "$out:/out" \
-    "$image" build --quiet --wheel --out-dir /out /src \
-    || die "building $dist from $src failed"
+    -v "$src:/src:ro" \
+    "$image" -c 'uv build --quiet --wheel --out-dir /tmp/wheels /src >&2 && tar -C /tmp/wheels -cf - .' \
+    | tar -C "$out" -xf -; then
+    die "building $dist from $src failed"
+  fi
 done
 
 set -- "$out"/*.whl

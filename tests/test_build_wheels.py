@@ -23,28 +23,28 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 
-# Records its arguments, then writes a wheel named after the mounted project's
-# directory into the mounted /out, as `uv build --wheel` would.
+# Records its arguments, then writes a tar stream holding a wheel named after
+# the mounted project's directory, as the container's `uv build ... && tar`
+# would.
 FAKE_DOCKER = """#!/usr/bin/env bash
 printf '%s\\n' "$*" >> "$FAKE_LOG"
 [ "${FAKE_FAIL:-0}" = 1 ] && exit 1
-src= out=
+src=
 while [ $# -gt 0 ]; do
   case "$1" in
-    -v) case "$2" in
-          *:/src:ro) src="${2%%:/src:ro}" ;;
-          *:/out) out="${2%%:/out}" ;;
-        esac
-        shift 2 ;;
+    -v) case "$2" in *:/src:ro) src="${2%%:/src:ro}" ;; esac; shift 2 ;;
     *) shift ;;
   esac
 done
-name="$(basename "$src")"
-touch "$out/hegemony_${name}-9.9.9-py3-none-any.whl"
+tmp="$(mktemp -d)"
+touch "$tmp/hegemony_$(basename "$src")-9.9.9-py3-none-any.whl"
+tar -C "$tmp" -cf - .
+rm -rf "$tmp"
 """
 
 
 def _project(parent: Path, repo: str, kind: str, name: str, dist: str) -> None:
+    """Create a plugin project whose pyproject.toml declares the name `dist`."""
     project = parent / repo / kind / name
     project.mkdir(parents=True)
     (project / "pyproject.toml").write_text(f'[project]\nname = "{dist}"\nversion = "9.9.9"\n')
@@ -77,6 +77,7 @@ def layout(tmp_path: Path) -> Path:
 
 
 def _run(layout: Path, **env: str) -> subprocess.CompletedProcess[str]:
+    """Run build-wheels.sh against the layout, with the fake docker first on PATH."""
     return subprocess.run(
         [
             str(layout / "demo" / "deploy" / "compose" / "build-wheels.sh"),
@@ -95,6 +96,7 @@ def _run(layout: Path, **env: str) -> subprocess.CompletedProcess[str]:
 
 
 def _wheels(layout: Path) -> list[str]:
+    """The wheel file names in the demo's plugin-wheels directory."""
     out = layout / "demo" / "deploy" / "compose" / "plugin-wheels"
     return sorted(p.name for p in out.glob("*.whl"))
 
@@ -106,12 +108,14 @@ def test_builds_each_pinned_plugin_from_its_checkout(layout: Path) -> None:
     assert _wheels(layout) == ["hegemony_inventory_git-9.9.9-py3-none-any.whl"]
     (call,) = (layout / "docker.log").read_text().splitlines()
     source = layout / "work" / "hegemony-inventory-plugins" / "plugins" / "inventory_git"
-    # In the platform image just built, as the calling user, source read-only.
+    # In the platform image just built, source read-only, and nothing mounted
+    # for writing: the wheel comes back on standard output.
     assert call.startswith("run --rm --pull never ")
-    assert f"--user {os.getuid()}:{os.getgid()}" in call
     assert f"-v {source}:/src:ro" in call
+    assert "--user" not in call
+    assert call.count(" -v ") == 1
     image = "ghcr.io/hegemony-sh/hegemony/api:local"
-    assert f"{image} build --quiet --wheel --out-dir /out /src" in call
+    assert f"{image} -c uv build --quiet --wheel --out-dir /tmp/wheels /src" in call
 
 
 def test_replaces_wheels_left_by_an_earlier_bring_up(layout: Path) -> None:
