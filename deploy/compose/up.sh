@@ -24,8 +24,10 @@ set -euo pipefail
 compose_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 compose="$compose_dir/compose.sh"
 
-log() { echo "[hegemony-demo] $*"; }
-die() { echo "[hegemony-demo] ERROR: $*" >&2; exit 1; }
+# shellcheck source=deploy/compose/ui.sh
+source "$compose_dir/ui.sh"
+die() { ui_die "$*"; }
+started=$SECONDS
 
 platform_build="${HEGEMONY_PLATFORM_BUILD:-release}"
 case "$platform_build" in
@@ -99,13 +101,13 @@ if [[ -n "${HEGEMONY_GHCR_TOKEN:-}" ]]; then
   printf '%s' "$HEGEMONY_GHCR_TOKEN" \
     | docker login ghcr.io -u "${HEGEMONY_GHCR_USER:-x-access-token}" --password-stdin >/dev/null \
     || die "ghcr.io refused HEGEMONY_GHCR_TOKEN (it needs read:packages)"
-  log "Logged in to ghcr.io for this bring-up only"
+  ui_ok "Logged in to ghcr.io for this bring-up only"
 fi
 
 # The platform joins the lab's management network, so the lab comes first.
 "$compose_dir/../lab/up.sh"
 
-log "Pulling images (the first time takes a few minutes) ..."
+ui_step 📦 "Pulling images (the first time takes a few minutes) ..."
 # A registry can drop one connection out of many parallel pulls. Images that
 # already arrived stay in the cache, so another attempt only fetches the rest.
 pull_attempt=1
@@ -116,26 +118,28 @@ until HEGEMONY_DEMO_OVERLAYS=none "$compose" pull --quiet --ignore-buildable; do
        and they are not public yet, set HEGEMONY_GHCR_TOKEN to a token with
        read:packages."
   fi
-  log "Pulling failed (attempt $pull_attempt of 3); retrying in $((pull_attempt * 10)) s ..."
+  ui_warn "Pulling failed (attempt $pull_attempt of 3); retrying in $((pull_attempt * 10)) s ..."
   sleep $((pull_attempt * 10))
   pull_attempt=$((pull_attempt + 1))
 done
+ui_ok "Images pulled"
 
 if [[ "$platform_build" == local ]]; then
-  log "Building the platform images from the platform checkout (the first time takes a while) ..."
+  ui_step 🧱 "Building the platform images from the platform checkout (the first time takes a while) ..."
   # migrate runs the api image, so building api covers it.
   HEGEMONY_DEMO_OVERLAYS=none "$compose" build api worker scheduler ui
   # The released wheels need the SDK of the pinned release; this platform has
   # the SDK of the plugin checkouts beside it, so the wheels come from there.
-  log "Building plugin wheels from the plugin checkouts ..."
+  ui_step 🧩 "Building plugin wheels from the plugin checkouts ..."
   "$compose_dir/build-wheels.sh" "$build_dir" ghcr.io/hegemony-sh/hegemony/api:local
 else
-  log "Fetching plugin wheels ..."
+  ui_step 🧩 "Fetching plugin wheels ..."
   "$compose_dir/fetch-wheels.sh"
 fi
 
-log "Building the demo images ..."
+ui_step 🔨 "Building the demo images ..."
 "$compose" build --quiet api worker
+ui_ok "Demo images built"
 
 cleanup
 registry_config=""
@@ -145,25 +149,36 @@ else
   unset DOCKER_CONFIG
 fi
 
-log "Migrating the database ..."
+ui_step 💾 "Migrating the database ..."
 "$compose" run --rm --quiet-pull migrate >/dev/null
+ui_ok "Database up to date"
 
-log "Starting the stack ..."
+ui_step 🚀 "Starting the stack ..."
 "$compose" up -d --remove-orphans
 
-log "Waiting for the API (the first start imports the demo data) ..."
+ui_step ⏳ "Waiting for the API (the first start imports the demo data) ..."
+waited=$SECONDS
 deadline=$((SECONDS + ${HEGEMONY_DEMO_WAIT_SECONDS:-600}))
 until "$compose" exec -T api curl -sf http://localhost:8000/ready >/dev/null 2>&1; do
   if (( SECONDS > deadline )); then
+    ui_wait_done
     die "the API is not ready after ${HEGEMONY_DEMO_WAIT_SECONDS:-600}s.
        See: task logs -- api   (or: deploy/compose/compose.sh logs api)
        and docs/troubleshooting.md"
   fi
-  sleep 5
+  # Check every 5 s; on a terminal, turn the spinner every second meanwhile.
+  for _ in 1 2 3 4 5; do
+    ui_wait_tick "the API is starting" $((SECONDS - waited))
+    sleep 1
+  done
 done
+ui_wait_done
+ui_ok "API ready after $(ui_duration $((SECONDS - waited)))"
 
-log "Checking the demo (no flow runs, so the walkthrough starts clean) ..."
+ui_step 🩺 "Checking the demo (no flow runs, so the walkthrough starts clean) ..."
 "$compose_dir/verify.sh" || die "the demo is up, but the checks above failed.
        Run 'task check' again after a fix, and see docs/troubleshooting.md"
+
+ui_ok "All checks passed; up in $(ui_duration $((SECONDS - started)))"
 
 "$compose_dir/banner.sh"

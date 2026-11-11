@@ -28,11 +28,77 @@ MIN_DISK_GIB=15
 WANT_DISK_GIB=25
 PORTS="8080 8081 8025 9000 3000"
 
-log() { echo "[hegemony-demo] $*"; }
-warn() { echo "[hegemony-demo] WARNING: $*" >&2; }
+# ---------------------------------------------------------------- output
+# Colours and symbols on a terminal (emojis too with a UTF-8 locale); the
+# plain "[hegemony-demo] message" lines anywhere else (a pipe, CI, TERM=dumb,
+# NO_COLOR, HEGEMONY_PLAIN=1). deploy/compose/ui.sh is the bash twin.
+
+FANCY=0
+UTF8=0
+if [ -t 1 ] && [ -z "${NO_COLOR:-}" ] && [ "${TERM:-dumb}" != dumb ] && [ "${HEGEMONY_PLAIN:-0}" != 1 ]; then
+  FANCY=1
+  case "${LC_ALL:-${LC_CTYPE:-${LANG:-}}}" in
+    *[Uu][Tt][Ff]-8* | *[Uu][Tt][Ff]8*) UTF8=1 ;;
+  esac
+fi
+if [ "$FANCY" = 1 ]; then
+  ESC=$(printf '\033')
+  B="${ESC}[1m" D="${ESC}[2m" R="${ESC}[0m"
+  RED="${ESC}[31m" GREEN="${ESC}[32m" YELLOW="${ESC}[33m" MAGENTA="${ESC}[35m" CYAN="${ESC}[36m"
+else
+  B='' D='' R='' RED='' GREEN='' YELLOW='' MAGENTA='' CYAN=''
+fi
+if [ "$UTF8" = 1 ]; then
+  S_OK='✔' S_WARN='⚠' S_FAIL='✖' S_DOT='•'
+else
+  S_OK='+' S_WARN='!' S_FAIL='x' S_DOT='-'
+fi
+
+emoji() { [ "$UTF8" = 1 ] && printf '%s ' "$1" || true; }
+step() { # emoji message
+  if [ "$FANCY" = 1 ]; then
+    printf '\n%s%s%s%s\n' "$(emoji "$1")" "$B$CYAN" "$2" "$R"
+  else
+    echo "[hegemony-demo] $2"
+  fi
+}
+log() {
+  if [ "$FANCY" = 1 ]; then
+    printf '   %s%s %s%s\n' "$D" "$S_DOT" "$*" "$R"
+  else
+    echo "[hegemony-demo] $*"
+  fi
+}
+ok() {
+  if [ "$FANCY" = 1 ]; then
+    printf '   %s%s%s %s\n' "$GREEN" "$S_OK" "$R" "$*"
+  else
+    echo "[hegemony-demo] $*"
+  fi
+}
+warn() {
+  if [ "$FANCY" = 1 ]; then
+    printf '   %s%s %s%s\n' "$YELLOW" "$S_WARN" "$*" "$R" >&2
+  else
+    echo "[hegemony-demo] WARNING: $*" >&2
+  fi
+}
 err() {
-  echo "[hegemony-demo] ERROR: $*" >&2
+  if [ "$FANCY" = 1 ]; then
+    printf '\n%s%s Error:%s %s\n' "$RED$B" "$S_FAIL" "$R" "$*" >&2
+  else
+    echo "[hegemony-demo] ERROR: $*" >&2
+  fi
   exit 1
+}
+
+header() {
+  if [ "$FANCY" = 1 ]; then
+    printf '\n  %s%sHegemony%s demo installer %s%s%s\n' "$(emoji 🦉)" "$B$MAGENTA" "$R" "$D" "$INSTALLER_VERSION" "$R"
+    printf '  %sThe network automation platform, with a small lab, on your machine.%s\n' "$D" "$R"
+  else
+    log "Hegemony demo installer $INSTALLER_VERSION"
+  fi
 }
 
 usage() {
@@ -58,6 +124,8 @@ Environment (all optional):
                               deploy/compose/.local/demo.env
   HEGEMONY_PLATFORM_VERSION   run this platform release instead of the pinned one
   HEGEMONY_SKIP_RESOURCE_CHECKS=1   skip the memory and disk checks
+  NO_COLOR=1 or HEGEMONY_PLAIN=1    plain output, no colours or emojis (off a
+                                    terminal it is always plain)
 
 Before launch only (private repositories and images), never needed after:
   HEGEMONY_GIT_TOKEN          token to clone private repositories from github.com
@@ -78,6 +146,7 @@ check_tools() {
   need curl "to download plugin wheels"
   need bash "the demo's helper scripts are bash"
   need docker "https://docs.docker.com/engine/install/"
+  ok "git, curl and bash found"
   docker info >/dev/null 2>&1 \
     || err "cannot talk to the Docker daemon: is it running, and may your user use it?
        (Linux: add yourself to the docker group, then log in again)"
@@ -91,6 +160,7 @@ check_tools() {
   if [ "$compose_major" -lt 2 ] || { [ "$compose_major" -eq 2 ] && [ "$compose_minor" -lt 24 ]; }; then
     err "Docker Compose 2.24 or newer is required (found $compose_version)"
   fi
+  ok "Docker is running, with Compose $compose_version"
 }
 
 check_platform() {
@@ -102,6 +172,9 @@ check_platform() {
     x86_64 | amd64 | aarch64 | arm64) ;;
     *) err "unsupported CPU architecture $(uname -m): x86-64 or arm64 only" ;;
   esac
+  os=$(uname -s)
+  [ "$os" != Darwin ] || os=macOS
+  ok "$os on $(uname -m)"
 }
 
 # Memory and disk as Docker sees them: on macOS that is the Docker Desktop VM.
@@ -119,6 +192,7 @@ check_resources() {
        (${WANT_MEMORY_GIB} recommended). Docker Desktop: Settings > Resources."
     [ "$memory_gib" -ge "$WANT_MEMORY_GIB" ] \
       || warn "Docker has ${memory_gib} GiB of memory; ${WANT_MEMORY_GIB} GiB is recommended"
+    [ "$memory_gib" -lt "$WANT_MEMORY_GIB" ] || ok "${memory_gib} GiB of memory for Docker"
   fi
   docker_root=$(docker info --format '{{.DockerRootDir}}' 2>/dev/null || true)
   # On macOS the root is inside the VM; measure the install directory instead.
@@ -131,6 +205,7 @@ check_resources() {
        (${WANT_DISK_GIB} recommended)"
   [ "$free_gib" -ge "$WANT_DISK_GIB" ] \
     || warn "${free_gib} GiB free for Docker at $docker_root; ${WANT_DISK_GIB} GiB is recommended"
+  [ "$free_gib" -lt "$WANT_DISK_GIB" ] || ok "${free_gib} GiB of free disk for Docker"
 }
 
 port_in_use() { # port
@@ -155,6 +230,7 @@ check_ports() {
     err "port $port is in use by another program; the demo publishes 8080 (UI), 8081
        (login), 8025 (mail), 9000 (object store) and 3000 (Git) on 127.0.0.1. Stop that program and re-run."
   done
+  ok "ports $(echo "$PORTS" | sed 's/ /, /g') are free"
 }
 
 # ---------------------------------------------------------------- git access
@@ -173,15 +249,17 @@ use_git_token() {
 
 clone_or_update() { # url ref dest
   if [ -d "$3/.git" ]; then
-    log "Updating $(basename "$3") to $2 ..."
+    log "Updating $(basename "$3") to $2"
     git -C "$3" fetch -q --depth 1 origin "$2" 2>/dev/null \
       || err "cannot fetch $2 from $1 (check the ref and your network)"
     git -C "$3" checkout -q --detach FETCH_HEAD
+    ok "$(basename "$3") at $2"
   else
-    log "Cloning $(basename "$3") at $2 ..."
+    log "Cloning $(basename "$3") at $2"
     git -c advice.detachedHead=false clone -q --depth 1 --branch "$2" "$1" "$3" 2>/dev/null \
       || err "cannot clone $2 from $1 (check the ref and your network; a private
        repository needs HEGEMONY_GIT_TOKEN before launch)"
+    ok "$(basename "$3") at $2"
   fi
 }
 
@@ -301,23 +379,29 @@ main() {
   done
   [ -z "${HEGEMONY_DEMO_REF:-}" ] || ref_given=1
 
-  log "Hegemony demo installer $INSTALLER_VERSION"
+  header
+  step 🔍 "Checking this machine ..."
   check_platform
   check_tools
   check_resources "$(pwd)"
   check_ports
   if [ -n "$preflight_only" ]; then
-    log "Preflight checks passed."
+    if [ "$FANCY" = 1 ]; then
+      printf '\n%s%sPreflight checks passed.%s This machine can run the demo.\n' "$(emoji ✅)" "$B$GREEN" "$R"
+    else
+      log "Preflight checks passed."
+    fi
     exit 0
   fi
   mkdir -p "$install_dir"
   install_dir=$(cd -- "$install_dir" && pwd)
 
+  step 📥 "Getting the demo and the platform ..."
   use_git_token
   # Run from inside a checkout (sh install.sh), the installer uses that
   # checkout as it is; piped from curl, it clones the demo at its ref.
   if [ -z "$ref_given" ] && demo_root=$(own_checkout); then
-    log "Using the checkout at $demo_root"
+    ok "Using the checkout at $demo_root"
     default_platform_dir="$demo_root/../hegemony"
   else
     demo_root="$install_dir/demo"
@@ -345,7 +429,7 @@ main() {
   platform_repo=$(pinned HEGEMONY_PLATFORM_REPO "$demo_root/platform.env")
   if [ -n "${HEGEMONY_PLATFORM_DIR:-}" ]; then
     [ -d "$platform_dir/deploy/compose" ] || err "HEGEMONY_PLATFORM_DIR=$platform_dir has no deploy/compose"
-    log "Using the platform checkout at $platform_dir as it is"
+    ok "Using the platform checkout at $platform_dir as it is"
   elif [ -d "$platform_dir" ] && [ ! -f "$platform_dir/.hegemony-demo-clone" ]; then
     err "$platform_dir exists and was not created by this installer. Set
        HEGEMONY_PLATFORM_DIR to use it as it is, or remove it."
@@ -355,18 +439,27 @@ main() {
   fi
   platform_dir=$(cd -- "$platform_dir" && pwd)
 
+  step 🔐 "Configuring ..."
   write_local_env "$demo_root" "$platform_dir" "$override"
-  log "Installed in $demo_root (platform $version)"
+  ok "Demo password ready (kept in deploy/compose/.local/demo.env)"
+  ok "Installed in $demo_root (platform $version)"
 
   if [ -n "$no_up" ]; then
     log "Not starting the stack (--no-up). Start it with:"
-    log "  $demo_root/deploy/compose/up.sh"
+    log "  ${B}$demo_root/deploy/compose/up.sh${R}"
     exit 0
   fi
   HEGEMONY_DEMO_SHOW_PASSWORD=1 "$demo_root/deploy/compose/up.sh"
-  echo
-  log "The demo lives in $demo_root. Run 'task --list' there (with go-task),"
-  log "or use deploy/compose/compose.sh, e.g. 'deploy/compose/compose.sh down'."
+  if [ "$FANCY" = 1 ]; then
+    printf '  %sThe demo lives in %s%s%s\n' "$(emoji 📂)" "$B" "$demo_root" "$R"
+    printf '  %sRun %stask --list%s there (with go-task), or use %sdeploy/compose/compose.sh%s,\n' \
+      "$(emoji 💡)" "$B" "$R" "$B" "$R"
+    printf '  %se.g. deploy/compose/compose.sh down%s\n\n' "$D" "$R"
+  else
+    echo
+    log "The demo lives in $demo_root. Run 'task --list' there (with go-task),"
+    log "or use deploy/compose/compose.sh, e.g. 'deploy/compose/compose.sh down'."
+  fi
 }
 
 main "$@"

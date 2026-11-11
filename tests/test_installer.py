@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import os
+import pty
 import shutil
 import stat
 import subprocess
@@ -172,6 +173,48 @@ def test_preflight_passes_on_a_good_machine(sandbox: Sandbox) -> None:
     assert result.returncode == 0, result.stderr
     assert "Preflight checks passed" in result.stdout
     assert not (sandbox.root / "hegemony-demo").exists(), "preflight must not create anything"
+    assert "\033[" not in result.stdout + result.stderr, "off a terminal the output is plain"
+    assert "[hegemony-demo] Preflight checks passed." in result.stdout
+
+
+def _run_on_terminal(sandbox: Sandbox, *args: str, **env: str) -> str:
+    """install.sh with its output on a pseudo-terminal, as a person sees it."""
+    controller, terminal = pty.openpty()
+    with subprocess.Popen(
+        ["sh", str(sandbox.checkout / "install.sh"), *args],
+        cwd=sandbox.root,
+        env={**sandbox.env, "TERM": "xterm-256color", "LANG": "C.UTF-8", **env},
+        stdin=subprocess.DEVNULL,
+        stdout=terminal,
+        stderr=terminal,
+    ) as process:
+        os.close(terminal)
+        output = b""
+        while True:
+            try:
+                chunk = os.read(controller, 4096)
+            except OSError:
+                break
+            if not chunk:
+                break
+            output += chunk
+        assert process.wait(timeout=60) == 0, output
+    os.close(controller)
+    return output.decode()
+
+
+def test_preflight_on_a_terminal_has_colours_and_emojis(sandbox: Sandbox) -> None:
+    output = _run_on_terminal(sandbox, "--preflight")
+    assert "\033[32m✔" in output
+    assert "🔍" in output
+    assert "Preflight checks passed." in output
+    assert "[hegemony-demo]" not in output
+
+
+def test_no_color_keeps_a_terminal_plain(sandbox: Sandbox) -> None:
+    output = _run_on_terminal(sandbox, "--preflight", NO_COLOR="1")
+    assert "\033[" not in output
+    assert "[hegemony-demo] Preflight checks passed." in output
 
 
 def test_preflight_needs_docker(sandbox: Sandbox) -> None:
