@@ -126,8 +126,15 @@ HEGEMONY_PLATFORM_DIR=~/work/hegemony task up:local
 The platform images are tagged `local`, and the demo's api and worker images
 are built on top of them. The mode is recorded in `deploy/compose/.local/demo.env`,
 so `task logs`, `task down` and the other tasks use the same images. A plain
-`task up` goes back to the pinned release. The demo's plugin wheels still come
-from `platform.env`.
+`task up` goes back to the pinned release.
+
+`platform.env` still names the plugins the demo adds, but a local build builds
+their wheels from the plugin repositories beside the platform checkout
+(`deploy/compose/build-wheels.sh`) instead of downloading the released ones. A
+released wheel requires the plugin SDK of its own release, and the platform you
+build ships the SDK of those repositories, so a released wheel may not install
+on it. Check out the plugin repositories at the versions the platform pins
+(its `.github/plugin-pins.json`).
 
 ## Commit messages
 
