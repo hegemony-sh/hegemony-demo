@@ -11,9 +11,10 @@
 #
 # HEGEMONY_PLATFORM_BUILD=local (what `task up:local` sets) builds the platform
 # images from the platform checkout instead of pulling the pinned release, for
-# trying an unreleased platform change with the demo. The mode is recorded in
-# .local/demo.env, so `task logs`, `task down` and the rest use the same
-# images; a plain `task up` goes back to the release.
+# trying an unreleased platform change with the demo, and builds the plugin
+# wheels from the plugin checkouts beside it (build-wheels.sh). The mode is
+# recorded in .local/demo.env, so `task logs`, `task down` and the rest use the
+# same images; a plain `task up` goes back to the release.
 #
 # Before the platform images are public (a test before launch), set HEGEMONY_GHCR_TOKEN
 # (a read:packages token) and optionally HEGEMONY_GHCR_USER. The login goes to
@@ -120,13 +121,17 @@ until HEGEMONY_DEMO_OVERLAYS=none "$compose" pull --quiet --ignore-buildable; do
   pull_attempt=$((pull_attempt + 1))
 done
 
-log "Fetching plugin wheels ..."
-"$compose_dir/fetch-wheels.sh"
-
 if [[ "$platform_build" == local ]]; then
   log "Building the platform images from the platform checkout (the first time takes a while) ..."
   # migrate runs the api image, so building api covers it.
   HEGEMONY_DEMO_OVERLAYS=none "$compose" build api worker scheduler ui
+  # The released wheels need the SDK of the pinned release; this platform has
+  # the SDK of the plugin checkouts beside it, so the wheels come from there.
+  log "Building plugin wheels from the plugin checkouts ..."
+  "$compose_dir/build-wheels.sh" "$build_dir" ghcr.io/hegemony-sh/hegemony/api:local
+else
+  log "Fetching plugin wheels ..."
+  "$compose_dir/fetch-wheels.sh"
 fi
 
 log "Building the demo images ..."
