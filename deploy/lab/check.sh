@@ -14,7 +14,9 @@ lab_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 root="$(cd -- "$lab_dir/../.." && pwd)"
 lab="$lab_dir/lab.sh"
 
-log() { echo "[hegemony-lab] $*"; }
+ui_tag=hegemony-lab
+# shellcheck source=deploy/compose/ui.sh
+source "$lab_dir/../compose/ui.sh"
 
 failing() {
   local service source target
@@ -26,17 +28,16 @@ failing() {
   done < "$root/dist/lab/checks.txt"
 }
 
-log "Waiting for the routing protocols to converge ..."
+ui_step 🌐 "Waiting for the routing protocols to converge ..."
 deadline=$((SECONDS + ${HEGEMONY_LAB_CONVERGE_SECONDS:-180}))
 while :; do
   missing="$(failing)"
   [[ -z "$missing" ]] && break
   if (( SECONDS > deadline )); then
-    echo "[hegemony-lab] ERROR: these paths do not answer:" >&2
-    while IFS= read -r line; do printf '  %s\n' "$line"; done <<<"$missing" >&2
-    echo "  See: deploy/lab/lab.sh exec <router> vtysh -c 'show ip route'" >&2
-    exit 1
+    ui_die "these paths do not answer:
+$(while IFS= read -r line; do printf '  %s\n' "$line"; done <<<"$missing")
+  See: deploy/lab/lab.sh exec <router> vtysh -c 'show ip route'"
   fi
   sleep 5
 done
-log "The lab is up and its network converged."
+ui_ok "The lab is up and its network converged."

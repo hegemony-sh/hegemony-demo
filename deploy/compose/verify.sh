@@ -20,9 +20,22 @@ compose_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 compose="$compose_dir/compose.sh"
 lab_dir="$compose_dir/../lab"
 
+# shellcheck source=deploy/compose/ui.sh
+source "$compose_dir/ui.sh"
+
 failures=0
 result() { # PASS|WARN|FAIL check detail
-  printf '[hegemony-demo] %-4s %s%s\n' "$1" "$2" "${3:+ ($3)}"
+  if ((ui_fancy)); then
+    local mark
+    case "$1" in
+      PASS) mark="$ui_green$ui_s_ok" ;;
+      WARN) mark="$ui_yellow$ui_s_warn" ;;
+      *) mark="$ui_red$ui_s_fail" ;;
+    esac
+    printf '   %s%s %-22s %s%s%s\n' "$mark" "$ui_r" "$2" "$ui_d" "${3:-}" "$ui_r"
+  else
+    printf '[hegemony-demo] %-4s %s%s\n' "$1" "$2" "${3:+ ($3)}"
+  fi
   [[ "$1" != FAIL ]] || failures=$((failures + 1))
 }
 answers() { curl -fsS --max-time 10 -o /dev/null "$1" 2>/dev/null; }
@@ -102,6 +115,5 @@ else
 fi
 
 if (( failures > 0 )); then
-  echo "[hegemony-demo] $failures check(s) failed. See docs/troubleshooting.md." >&2
-  exit 1
+  ui_die "$failures check(s) failed. See docs/troubleshooting.md."
 fi

@@ -12,23 +12,26 @@ set -euo pipefail
 lab_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 lab="$lab_dir/lab.sh"
 
-log() { echo "[hegemony-lab] $*"; }
-die() { echo "[hegemony-lab] ERROR: $*" >&2; exit 1; }
+ui_tag=hegemony-lab
+# shellcheck source=deploy/compose/ui.sh
+source "$lab_dir/../compose/ui.sh"
+die() { ui_die "$*"; }
 
 "$lab_dir/fetch-inventory.sh"
 
-log "Starting the lab (routers, servers, Gitea, Mailpit) ..."
+ui_step 🧪 "Starting the lab (routers, servers, Gitea, Mailpit) ..."
 attempt=1
 until "$lab" up -d --build --quiet-pull --wait --wait-timeout "${HEGEMONY_LAB_WAIT_SECONDS:-300}"; do
   if (( attempt >= 3 )); then
     die "the lab did not start 3 times. See: deploy/lab/lab.sh ps   and docs/troubleshooting.md"
   fi
-  log "Starting failed (attempt $attempt of 3); retrying in $((attempt * 10)) s ..."
+  ui_warn "Starting failed (attempt $attempt of 3); retrying in $((attempt * 10)) s ..."
   sleep $((attempt * 10))
   attempt=$((attempt + 1))
 done
 
 seed="$("$lab" ps -a --format '{{.Service}} {{.ExitCode}}' gitea-seed | awk '{ print $2 }')"
 [[ "$seed" == 0 ]] || die "seeding Gitea failed. See: deploy/lab/lab.sh logs gitea-seed"
+ui_ok "Lab started and Gitea seeded"
 
 "$lab_dir/check.sh"
