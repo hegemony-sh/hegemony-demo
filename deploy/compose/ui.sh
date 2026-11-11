@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # shellcheck shell=bash
 # SPDX-FileCopyrightText: 2026 Rexonix s.r.o.
 # SPDX-FileContributor: Jakub Trávník <jakub.travnik@gmail.com>
