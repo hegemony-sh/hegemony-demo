@@ -177,7 +177,9 @@ def test_preflight_passes_on_a_good_machine(sandbox: Sandbox) -> None:
     assert "[hegemony-demo] Preflight checks passed." in result.stdout
 
 
-def _run_on_terminal(sandbox: Sandbox, *args: str, **env: str) -> str:
+def _run_on_terminal(
+    sandbox: Sandbox, *args: str, stderr_to_terminal: bool = True, **env: str
+) -> str:
     """install.sh with its output on a pseudo-terminal, as a person sees it."""
     controller, terminal = pty.openpty()
     with subprocess.Popen(
@@ -186,7 +188,7 @@ def _run_on_terminal(sandbox: Sandbox, *args: str, **env: str) -> str:
         env={**sandbox.env, "TERM": "xterm-256color", "LANG": "C.UTF-8", **env},
         stdin=subprocess.DEVNULL,
         stdout=terminal,
-        stderr=terminal,
+        stderr=terminal if stderr_to_terminal else subprocess.DEVNULL,
     ) as process:
         os.close(terminal)
         output = b""
@@ -209,6 +211,13 @@ def test_preflight_on_a_terminal_has_colours_and_emojis(sandbox: Sandbox) -> Non
     assert "🔍" in output
     assert "Preflight checks passed." in output
     assert "[hegemony-demo]" not in output
+
+
+def test_redirected_stderr_keeps_the_output_plain(sandbox: Sandbox) -> None:
+    # `install.sh 2>errors.log` must not write colour codes into the log.
+    output = _run_on_terminal(sandbox, "--preflight", stderr_to_terminal=False)
+    assert "\033[" not in output
+    assert "[hegemony-demo] Preflight checks passed." in output
 
 
 def test_no_color_keeps_a_terminal_plain(sandbox: Sandbox) -> None:

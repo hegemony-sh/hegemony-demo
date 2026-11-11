@@ -29,13 +29,14 @@ WANT_DISK_GIB=25
 PORTS="8080 8081 8025 9000 3000"
 
 # ---------------------------------------------------------------- output
-# Colours and symbols on a terminal (emojis too with a UTF-8 locale); the
-# plain "[hegemony-demo] message" lines anywhere else (a pipe, CI, TERM=dumb,
-# NO_COLOR, HEGEMONY_PLAIN=1). deploy/compose/ui.sh is the bash twin.
+# Colours and symbols when stdout and stderr are terminals (emojis too with
+# a UTF-8 locale); the plain "[hegemony-demo] message" lines anywhere else (a
+# pipe, CI, TERM=dumb, NO_COLOR, HEGEMONY_PLAIN=1). deploy/compose/ui.sh is
+# the bash twin.
 
 FANCY=0
 UTF8=0
-if [ -t 1 ] && [ -z "${NO_COLOR:-}" ] && [ "${TERM:-dumb}" != dumb ] && [ "${HEGEMONY_PLAIN:-0}" != 1 ]; then
+if [ -t 1 ] && [ -t 2 ] && [ -z "${NO_COLOR:-}" ] && [ "${TERM:-dumb}" != dumb ] && [ "${HEGEMONY_PLAIN:-0}" != 1 ]; then
   FANCY=1
   case "${LC_ALL:-${LC_CTYPE:-${LANG:-}}}" in
     *[Uu][Tt][Ff]-8* | *[Uu][Tt][Ff]8*) UTF8=1 ;;

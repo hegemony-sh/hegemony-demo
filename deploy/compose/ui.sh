@@ -9,17 +9,17 @@
 # POSIX copy, as it runs before the checkout exists). Source it after setting
 # ui_tag (default hegemony-demo).
 #
-# On a terminal the output gets colours and symbols (emojis too when the
-# locale is UTF-8). Anywhere else (a pipe, a log file, CI, TERM=dumb,
-# NO_COLOR set, HEGEMONY_PLAIN=1) every line is the plain "[tag] message",
-# so logs stay greppable.
+# When stdout and stderr are both terminals, the output gets colours and
+# symbols (emojis too when the locale is UTF-8). Anywhere else (a pipe, a
+# log file, CI, TERM=dumb, NO_COLOR set, HEGEMONY_PLAIN=1) every line is the
+# plain "[tag] message", so logs stay greppable.
 
 # The colours and symbols are for the scripts that source this file.
 # shellcheck disable=SC2034
 ui_tag="${ui_tag:-hegemony-demo}"
 ui_fancy=0
 ui_utf8=0
-if [[ -t 1 && -z "${NO_COLOR:-}" && "${TERM:-dumb}" != dumb && "${HEGEMONY_PLAIN:-0}" != 1 ]]; then
+if [[ -t 1 && -t 2 && -z "${NO_COLOR:-}" && "${TERM:-dumb}" != dumb && "${HEGEMONY_PLAIN:-0}" != 1 ]]; then
   ui_fancy=1
   case "${LC_ALL:-${LC_CTYPE:-${LANG:-}}}" in
     *[Uu][Tt][Ff]-8* | *[Uu][Tt][Ff]8*) ui_utf8=1 ;;
