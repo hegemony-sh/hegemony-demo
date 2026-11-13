@@ -193,6 +193,7 @@ flows:
           - id: approve_change
             name: Approve the plan
             type: approval
+            handler: control.approval
             port_anchors:
               approved: NE
               expired: SbW
@@ -215,6 +216,7 @@ flows:
           - id: approve_repair
             name: Approve the repair
             type: approval
+            handler: control.approval
             port_anchors:
               approved: EbS
               expired: NbW

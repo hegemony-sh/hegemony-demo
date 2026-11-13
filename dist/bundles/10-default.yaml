@@ -197,6 +197,7 @@ flows:
       - id: approval
         name: Approve the change
         type: approval
+        handler: control.approval
         position_x: 195
         position_y: 150
         params:
@@ -584,6 +585,7 @@ flows:
       - id: close_gate
         name: Close the window
         type: approval
+        handler: control.approval
         port_anchors:
           approved: EbN
           expired: SEbE
@@ -896,6 +898,7 @@ flows:
       - id: approve_change
         name: Approve the plan
         type: approval
+        handler: control.approval
         port_anchors:
           approved: NE
           expired: SbW
@@ -916,6 +919,7 @@ flows:
       - id: approve_repair
         name: Approve the repair
         type: approval
+        handler: control.approval
         port_anchors:
           approved: EbS
           expired: NbW
