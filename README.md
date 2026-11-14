@@ -117,6 +117,27 @@ From the demo directory (`./hegemony-demo/demo`; the platform's files are in
 To remove the demo: `task reset`, then delete the directory. Something not
 working? See [troubleshooting](docs/troubleshooting.md).
 
+### Devices outside this machine
+
+The lab's routers and servers are containers on this machine. To try a step
+on a real device on your network, such as a Cisco router, that device must
+reach the demo too when a step hands it a download link for a repository file
+(`netcli.file_download`, `shell.file_download`). By default nothing outside
+this machine can: every port listens on 127.0.0.1 only.
+
+Run the installer again with this machine's address as the device sees it:
+
+```sh
+sh install.sh --host-address 192.168.1.50
+```
+
+The links then point at `http://192.168.1.50:8080/api`, through the web UI's
+proxy, and the UI port 8080 listens on every interface. That also makes the
+login page reachable from your network, so do this on a trusted network only;
+`task check` reports the open port. The setting is kept for later runs, and
+`--host-address off` turns it off. Open the UI as <http://localhost:8080> as
+before. It needs a platform release with download links.
+
 ## How it is made
 
 Everything under `dist/` is generated from one small spec,

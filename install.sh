@@ -112,6 +112,9 @@ Usage: install.sh [options]
                   release, or main)
   --preflight     check this machine and stop
   --no-up         clone and configure, do not start the stack
+  --host-address <address>
+                  let devices outside this machine fetch download links (env
+                  HEGEMONY_DEMO_HOST_ADDRESS; "off" turns it off again). See below.
   --version       print the installer version
   --help          print this help
 
@@ -127,6 +130,16 @@ Environment (all optional):
   HEGEMONY_SKIP_RESOURCE_CHECKS=1   skip the memory and disk checks
   NO_COLOR=1 or HEGEMONY_PLAIN=1    plain output, no colours or emojis (off a
                                     terminal it is always plain)
+
+Devices outside this machine (a real router or server on your network):
+  HEGEMONY_DEMO_HOST_ADDRESS  this machine's address as those devices reach it
+                              (an IPv4 address or a DNS name). The download
+                              links steps hand a device then point at
+                              http://<address>:8080/api, and the web UI port
+                              8080 is published on every interface, not just
+                              127.0.0.1, so the login page is reachable from
+                              your network too: use it on a trusted network
+                              only. Kept for later runs; "off" turns it off.
 
 Before launch only (private repositories and images), never needed after:
   HEGEMONY_GIT_TOKEN          token to clone private repositories from github.com
@@ -303,6 +316,17 @@ random_password() {
   LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom 2>/dev/null | head -c 24 || true
 }
 
+# An IPv4 address or a DNS name, as devices on the network reach this
+# machine. Not loopback: only this machine reaches that.
+valid_host_address() {
+  [ -n "$1" ] && [ "${#1}" -le 253 ] || return 1
+  case "$1" in
+    *[!A-Za-z0-9.-]* | -* | .* | *. | *..*) return 1 ;;
+    localhost | localhost.* | 127.* | 0.0.0.0) return 1 ;;
+  esac
+  return 0
+}
+
 valid_password() {
   [ "${#1}" -ge 12 ] && [ "${#1}" -le 128 ] || return 1
   case "$1" in *[!A-Za-z0-9._~+-]*) return 1 ;; esac
@@ -318,11 +342,25 @@ write_local_env() { # demo_root platform_dir platform_version
   password=""
   admin_password=""
   registry_key=""
+  host_address=""
   if [ -f "$local_env" ]; then
     password=$(pinned HEGEMONY_DEMO_PASSWORD "$local_env")
     admin_password=$(pinned KEYCLOAK_ADMIN_PASSWORD "$local_env")
     registry_key=$(pinned HEGEMONY_REGISTRY_TOKEN_KEY "$local_env")
+    host_address=$(pinned HEGEMONY_DEMO_HOST_ADDRESS "$local_env")
   fi
+  # Kept from the last run unless given again; "off" removes it.
+  case "${HEGEMONY_DEMO_HOST_ADDRESS:-}" in
+    '') ;;
+    off) host_address="" ;;
+    *)
+      valid_host_address "$HEGEMONY_DEMO_HOST_ADDRESS" \
+        || err "HEGEMONY_DEMO_HOST_ADDRESS must be an IPv4 address or a DNS name that devices
+       on your network reach this machine at (not localhost or 127.x), or off"
+      host_address=$HEGEMONY_DEMO_HOST_ADDRESS
+      ;;
+  esac
+  ui_port=$(pinned UI_PORT "$1/deploy/compose/.env.demo")
   if [ -n "${HEGEMONY_DEMO_PASSWORD:-}" ]; then
     valid_password "$HEGEMONY_DEMO_PASSWORD" \
       || err "HEGEMONY_DEMO_PASSWORD must be 12 to 128 letters, digits or ._~+-"
@@ -349,6 +387,13 @@ write_local_env() { # demo_root platform_dir platform_version
       echo "HEGEMONY_PLATFORM_DIR=$2"
       [ -z "$3" ] || echo "HEGEMONY_PLATFORM_VERSION=$3"
       echo "DOCKER_GID=$(detect_docker_gid)"
+      if [ -n "$host_address" ]; then
+        # Devices outside this machine fetch download links through the web
+        # UI's proxy, so its port listens on every interface.
+        echo "HEGEMONY_DEMO_HOST_ADDRESS=$host_address"
+        echo "UI_BIND_ADDRESS=0.0.0.0"
+        echo "HEGEMONY_API_EXTERNAL_URL=http://$host_address:${ui_port:-8080}/api"
+      fi
       # The platform build of the running stack (up.sh records it; a bring-up
       # sets it again).
       [ ! -f "$local_env" ] \
@@ -358,6 +403,7 @@ write_local_env() { # demo_root platform_dir platform_version
   )
   chmod 600 "$local_env"
   unset password admin_password registry_key
+  configured_host_address=$host_address
 }
 
 # ---------------------------------------------------------------------- main
@@ -373,6 +419,11 @@ main() {
       --ref) DEMO_REF=${2:?--ref needs a value}; ref_given=1; shift 2 ;;
       --preflight) preflight_only=1; shift ;;
       --no-up) no_up=1; shift ;;
+      --host-address)
+        HEGEMONY_DEMO_HOST_ADDRESS=${2:?--host-address needs a value}
+        export HEGEMONY_DEMO_HOST_ADDRESS
+        shift 2
+        ;;
       --version) echo "$INSTALLER_VERSION"; exit 0 ;;
       -h | --help) usage; exit 0 ;;
       *) err "unknown option: $1 (see --help)" ;;
@@ -443,6 +494,11 @@ main() {
   step 🔐 "Configuring ..."
   write_local_env "$demo_root" "$platform_dir" "$override"
   ok "Demo password ready (kept in deploy/compose/.local/demo.env)"
+  if [ -n "$configured_host_address" ]; then
+    warn "devices on your network fetch download links from http://$configured_host_address:${ui_port:-8080}/api;
+       the web UI and its login page listen on every interface. Use a trusted network.
+       To turn it off: re-run with --host-address off"
+  fi
   ok "Installed in $demo_root (platform $version)"
 
   if [ -n "$no_up" ]; then
