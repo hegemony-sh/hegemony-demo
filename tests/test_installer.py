@@ -368,13 +368,48 @@ def test_a_host_address_is_kept_until_turned_off(sandbox: Sandbox) -> None:
 
 @pytest.mark.parametrize(
     "address",
-    ["localhost", "127.0.0.1", ALL_INTERFACES, "has space", "a/b", "x:8080", "-x", "a..b", "$(id)"],
+    [
+        "localhost",
+        "LOCALHOST",
+        "box.localhost",
+        "127.0.0.1",
+        "127.1.2.3",
+        ALL_INTERFACES,
+        "999.999.999.999",
+        "192.168.1",
+        "192.168.1.50.7",
+        "demo.-lab",
+        "demo-.lab",
+        "a" * 64 + ".example",
+        "has space",
+        "a/b",
+        "x:8080",
+        "-x",
+        "a..b",
+        "$(id)",
+    ],
 )
 def test_a_host_address_devices_cannot_use_is_refused(sandbox: Sandbox, address: str) -> None:
     result = sandbox.run("--no-up", "--host-address", address)
     assert result.returncode == 1
     assert "HEGEMONY_DEMO_HOST_ADDRESS must be" in result.stderr
     assert not (sandbox.checkout / "deploy/compose/.local/demo.env").exists()
+
+
+@pytest.mark.parametrize(
+    "address", ["10.0.0.1", "255.255.255.254", "Demo-01.Lab.example", "router1"]
+)
+def test_a_usable_host_address_is_accepted(sandbox: Sandbox, address: str) -> None:
+    result = sandbox.run("--no-up", "--host-address", address)
+    assert result.returncode == 0, result.stderr
+    assert _local_env(sandbox)["HEGEMONY_DEMO_HOST_ADDRESS"] == address
+
+
+def test_the_link_follows_a_ui_port_from_the_environment(sandbox: Sandbox) -> None:
+    result = sandbox.run("--no-up", "--host-address", "192.168.1.50", UI_PORT="9090")
+    assert result.returncode == 0, result.stderr
+    assert _local_env(sandbox)["HEGEMONY_API_EXTERNAL_URL"] == "http://192.168.1.50:9090/api"
+    assert "192.168.1.50:9090/api" in result.stderr
 
 
 def test_the_api_takes_the_link_address_from_the_recorded_settings() -> None:

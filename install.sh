@@ -317,12 +317,40 @@ random_password() {
 }
 
 # An IPv4 address or a DNS name, as devices on the network reach this
-# machine. Not loopback: only this machine reaches that.
+# machine. Not loopback or the unspecified address: only this machine reaches
+# those.
 valid_host_address() {
   [ -n "$1" ] && [ "${#1}" -le 253 ] || return 1
+  case "$1" in *[!A-Za-z0-9.-]* | .* | *. | *..*) return 1 ;; esac
+  lower=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
+  case "$lower" in localhost | *.localhost) return 1 ;; esac
   case "$1" in
-    *[!A-Za-z0-9.-]* | -* | .* | *. | *..*) return 1 ;;
-    localhost | localhost.* | 127.* | 0.0.0.0) return 1 ;;
+    *[!0-9.]*)
+      # A DNS name: labels of 1 to 63 letters, digits and hyphens, neither
+      # starting nor ending with a hyphen.
+      old_ifs=$IFS
+      IFS=.
+      # shellcheck disable=SC2086 # split on the dots on purpose
+      set -- $1
+      IFS=$old_ifs
+      for label in "$@"; do
+        [ "${#label}" -le 63 ] || return 1
+        case "$label" in -* | *-) return 1 ;; esac
+      done
+      ;;
+    *)
+      # An IPv4 address: four numbers from 0 to 255.
+      old_ifs=$IFS
+      IFS=.
+      # shellcheck disable=SC2086 # split on the dots on purpose
+      set -- $1
+      IFS=$old_ifs
+      [ "$#" -eq 4 ] || return 1
+      for octet in "$@"; do
+        [ "${#octet}" -le 3 ] && [ "$octet" -le 255 ] || return 1
+      done
+      [ "$1" -ne 127 ] && [ "$1" -ne 0 ] || return 1
+      ;;
   esac
   return 0
 }
@@ -360,7 +388,10 @@ write_local_env() { # demo_root platform_dir platform_version
       host_address=$HEGEMONY_DEMO_HOST_ADDRESS
       ;;
   esac
-  ui_port=$(pinned UI_PORT "$1/deploy/compose/.env.demo")
+  # The UI's port as Compose publishes it: the environment first, then the
+  # demo's settings.
+  ui_port=${UI_PORT:-$(pinned UI_PORT "$1/deploy/compose/.env.demo")}
+  case "${ui_port:-8080}" in *[!0-9]*) err "UI_PORT must be a port number, not: $ui_port" ;; esac
   if [ -n "${HEGEMONY_DEMO_PASSWORD:-}" ]; then
     valid_password "$HEGEMONY_DEMO_PASSWORD" \
       || err "HEGEMONY_DEMO_PASSWORD must be 12 to 128 letters, digits or ._~+-"
