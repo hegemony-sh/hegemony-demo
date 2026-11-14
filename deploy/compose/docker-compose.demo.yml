@@ -65,6 +65,10 @@ services:
       HEGEMONY_BOOTSTRAP_ENABLED: ${HEGEMONY_BOOTSTRAP_ENABLED:-true}
       HEGEMONY_BOOTSTRAP_DIR: /bootstrap
       HEGEMONY_BOOTSTRAP_ENABLE_SCHEDULES: ${HEGEMONY_BOOTSTRAP_ENABLE_SCHEDULES:-false}
+      # Where devices fetch the download links steps hand them. Empty (no
+      # links) unless install.sh --host-address recorded this machine's
+      # address in .local/demo.env.
+      HEGEMONY_API_EXTERNAL_URL: ${HEGEMONY_API_EXTERNAL_URL:-}
     volumes:
       - ${HEGEMONY_DEMO_ROOT:?}/dist/bundles:/bootstrap:ro
     networks:

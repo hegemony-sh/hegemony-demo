@@ -25,6 +25,8 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
+# What the UI port binds to with a host address: compared with, never bound.
+ALL_INTERFACES = "0.0.0.0"  # noqa: S104
 TOOLS = [
     "awk", "base64", "basename", "bash", "cat", "chmod", "cut", "df", "dirname", "env",
     "git", "grep", "head", "id", "ls", "mkdir", "mv", "readlink", "rm", "sed", "sh", "stat",
@@ -325,6 +327,94 @@ def test_a_weak_or_unsafe_password_is_refused(sandbox: Sandbox, password: str) -
     result = sandbox.run("--no-up", HEGEMONY_DEMO_PASSWORD=password)
     assert result.returncode == 1
     assert "HEGEMONY_DEMO_PASSWORD must be" in result.stderr
+
+
+def test_without_a_host_address_nothing_is_published_beyond_this_machine(
+    sandbox: Sandbox,
+) -> None:
+    assert sandbox.run("--no-up").returncode == 0
+    values = _local_env(sandbox)
+    for name in ("HEGEMONY_DEMO_HOST_ADDRESS", "UI_BIND_ADDRESS", "HEGEMONY_API_EXTERNAL_URL"):
+        assert name not in values
+
+
+@pytest.mark.parametrize("how", ["option", "environment"])
+def test_a_host_address_publishes_the_ui_and_points_links_at_it(sandbox: Sandbox, how: str) -> None:
+    if how == "option":
+        result = sandbox.run("--no-up", "--host-address", "192.168.1.50")
+    else:
+        result = sandbox.run("--no-up", HEGEMONY_DEMO_HOST_ADDRESS="demo.lab.example")
+    assert result.returncode == 0, result.stderr
+    address = "192.168.1.50" if how == "option" else "demo.lab.example"
+    values = _local_env(sandbox)
+    assert values["HEGEMONY_DEMO_HOST_ADDRESS"] == address
+    assert values["UI_BIND_ADDRESS"] == ALL_INTERFACES
+    assert values["HEGEMONY_API_EXTERNAL_URL"] == f"http://{address}:8080/api"
+    assert "trusted network" in result.stderr
+
+
+def test_a_host_address_is_kept_until_turned_off(sandbox: Sandbox) -> None:
+    assert sandbox.run("--no-up", "--host-address", "192.168.1.50").returncode == 0
+    first = _local_env(sandbox)
+    assert sandbox.run("--no-up").returncode == 0
+    kept = _local_env(sandbox)
+    assert kept["HEGEMONY_API_EXTERNAL_URL"] == "http://192.168.1.50:8080/api"
+    assert kept["HEGEMONY_DEMO_PASSWORD"] == first["HEGEMONY_DEMO_PASSWORD"]
+    assert sandbox.run("--no-up", "--host-address", "off").returncode == 0
+    off = _local_env(sandbox)
+    assert "HEGEMONY_API_EXTERNAL_URL" not in off and "UI_BIND_ADDRESS" not in off
+    assert off["HEGEMONY_DEMO_PASSWORD"] == first["HEGEMONY_DEMO_PASSWORD"]
+
+
+@pytest.mark.parametrize(
+    "address",
+    [
+        "localhost",
+        "LOCALHOST",
+        "box.localhost",
+        "127.0.0.1",
+        "127.1.2.3",
+        ALL_INTERFACES,
+        "999.999.999.999",
+        "192.168.1",
+        "192.168.1.50.7",
+        "demo.-lab",
+        "demo-.lab",
+        "a" * 64 + ".example",
+        "has space",
+        "a/b",
+        "x:8080",
+        "-x",
+        "a..b",
+        "$(id)",
+    ],
+)
+def test_a_host_address_devices_cannot_use_is_refused(sandbox: Sandbox, address: str) -> None:
+    result = sandbox.run("--no-up", "--host-address", address)
+    assert result.returncode == 1
+    assert "HEGEMONY_DEMO_HOST_ADDRESS must be" in result.stderr
+    assert not (sandbox.checkout / "deploy/compose/.local/demo.env").exists()
+
+
+@pytest.mark.parametrize(
+    "address", ["10.0.0.1", "255.255.255.254", "Demo-01.Lab.example", "router1"]
+)
+def test_a_usable_host_address_is_accepted(sandbox: Sandbox, address: str) -> None:
+    result = sandbox.run("--no-up", "--host-address", address)
+    assert result.returncode == 0, result.stderr
+    assert _local_env(sandbox)["HEGEMONY_DEMO_HOST_ADDRESS"] == address
+
+
+def test_the_link_follows_a_ui_port_from_the_environment(sandbox: Sandbox) -> None:
+    result = sandbox.run("--no-up", "--host-address", "192.168.1.50", UI_PORT="9090")
+    assert result.returncode == 0, result.stderr
+    assert _local_env(sandbox)["HEGEMONY_API_EXTERNAL_URL"] == "http://192.168.1.50:9090/api"
+    assert "192.168.1.50:9090/api" in result.stderr
+
+
+def test_the_api_takes_the_link_address_from_the_recorded_settings() -> None:
+    overlay = (ROOT / "deploy/compose/docker-compose.demo.yml").read_text()
+    assert "HEGEMONY_API_EXTERNAL_URL: ${HEGEMONY_API_EXTERNAL_URL:-}" in overlay
 
 
 def test_tokens_never_reach_the_output(sandbox: Sandbox) -> None:
@@ -685,3 +775,28 @@ def test_the_full_stack_renders_against_a_platform_checkout(sandbox: Sandbox, bu
     api = json.loads(platform_only.stdout)["services"]["api"]
     assert api["image"] == f"ghcr.io/hegemony-sh/hegemony/api:{tag}"
     assert ("build" in api) == (build == "local")
+
+
+@pytest.mark.skipif(
+    not os.environ.get("HEGEMONY_TEST_PLATFORM_DIR"),
+    reason="set HEGEMONY_TEST_PLATFORM_DIR to a platform checkout to render the full stack",
+)
+@pytest.mark.parametrize("address", ["", "192.168.1.50"])
+def test_the_host_address_reaches_the_api_and_the_ui_port(sandbox: Sandbox, address: str) -> None:
+    real_docker = shutil.which("docker", path=os.environ.get("PATH"))
+    assert real_docker
+    (sandbox.bin / "docker").unlink()
+    (sandbox.bin / "docker").symlink_to(real_docker)
+    platform = os.environ["HEGEMONY_TEST_PLATFORM_DIR"]
+    extra = ["--host-address", address] if address else []
+    installed = sandbox.run(
+        "--no-up", *extra, HEGEMONY_PLATFORM_DIR=platform, HEGEMONY_SKIP_RESOURCE_CHECKS="1"
+    )
+    assert installed.returncode == 0, installed.stderr
+    result = _compose(sandbox, "config", "--format", "json", HEGEMONY_PLATFORM_DIR=platform)
+    assert result.returncode == 0, result.stderr
+    services = json.loads(result.stdout)["services"]
+    expected = f"http://{address}:8080/api" if address else ""
+    assert services["api"]["environment"]["HEGEMONY_API_EXTERNAL_URL"] == expected
+    [port] = [p for p in services["ui"]["ports"] if str(p.get("published")) == "8080"]
+    assert port["host_ip"] == (ALL_INTERFACES if address else "127.0.0.1")
