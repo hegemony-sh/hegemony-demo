@@ -145,3 +145,52 @@ def test_a_failed_build_stops_the_bring_up(layout: Path) -> None:
     assert result.returncode != 0
     assert "building hegemony-inventory-git" in result.stderr
     assert _wheels(layout) == []
+
+
+def _add_local_plugins(layout: Path, value: str) -> None:
+    """Append a HEGEMONY_LOCAL_PLUGINS line to the layout's platform.env."""
+    env = layout / "demo" / "platform.env"
+    env.write_text(env.read_text() + f'HEGEMONY_LOCAL_PLUGINS="{value}"\n')
+
+
+def test_builds_the_local_only_plugins_too(layout: Path) -> None:
+    _project(
+        layout / "work",
+        "hegemony-step-plugins",
+        "transports",
+        "transport_scrapli",
+        "hegemony-transport-scrapli",
+    )
+    _add_local_plugins(layout, "hegemony-transport-scrapli")
+
+    result = _run(layout)
+
+    assert result.returncode == 0, result.stderr
+    assert _wheels(layout) == [
+        "hegemony_inventory_git-9.9.9-py3-none-any.whl",
+        "hegemony_transport_scrapli-9.9.9-py3-none-any.whl",
+    ]
+
+
+def test_names_a_local_only_plugin_that_has_no_checkout(layout: Path) -> None:
+    _add_local_plugins(layout, "hegemony-transport-scrapli")
+
+    result = _run(layout)
+
+    assert result.returncode != 0
+    assert "expected one project named hegemony-transport-scrapli" in result.stderr
+
+
+def test_refuses_a_local_only_plugin_that_is_not_a_distribution_name(layout: Path) -> None:
+    _add_local_plugins(layout, "../evil")
+
+    result = _run(layout)
+
+    assert result.returncode != 0
+    assert "not a distribution name in HEGEMONY_LOCAL_PLUGINS: ../evil" in result.stderr
+    assert not (layout / "docker.log").exists()
+
+
+def test_the_demo_adds_the_scrapli_transport_in_local_builds() -> None:
+    env = (ROOT / "platform.env").read_text()
+    assert 'HEGEMONY_LOCAL_PLUGINS="hegemony-transport-scrapli"' in env

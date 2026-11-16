@@ -136,6 +136,12 @@ build ships the SDK of those repositories, so a released wheel may not install
 on it. Check out the plugin repositories at the versions the platform pins
 (its `.github/plugin-pins.json`).
 
+A local build also adds the plugins `HEGEMONY_LOCAL_PLUGINS` in `platform.env`
+names, built the same way. Today that is the scrapli device transport, for old
+network devices that need legacy SSH algorithms the default netmiko transport
+no longer implements. The pinned release predates device-transport plugins, so
+a plain `task up` does not add them.
+
 ## Commit messages
 
 Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/),

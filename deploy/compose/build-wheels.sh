@@ -14,8 +14,9 @@
 # wheels may not install on it. Built from that same checkout, they always do.
 #
 # platform.env still names which plugins the demo adds; only their source
-# changes. The build runs in the platform image just built, which has uv, so
-# the host needs nothing beyond Docker.
+# changes. HEGEMONY_LOCAL_PLUGINS names more, built the same way, that only a
+# local build adds. The build runs in the platform image just built, which has
+# uv, so the host needs nothing beyond Docker.
 #
 # Usage: build-wheels.sh PLATFORM_DIR BUILD_IMAGE
 set -euo pipefail
@@ -33,6 +34,8 @@ command -v docker >/dev/null || die "docker is required"
 
 wheels="$(sed -n 's/^HEGEMONY_PLUGIN_WHEELS=//p' "$root/platform.env" | tail -n 1 | tr -d '"')"
 [[ -n "$wheels" ]] || die "no HEGEMONY_PLUGIN_WHEELS in platform.env"
+# Plugins only a local build adds, by distribution name (may be empty).
+local_plugins="$(sed -n 's/^HEGEMONY_LOCAL_PLUGINS=//p' "$root/platform.env" | tail -n 1 | tr -d '"')"
 
 # The source directory of a distribution: the one plugin checkout project whose
 # pyproject.toml declares that name.
@@ -51,6 +54,7 @@ source_of() { # distribution-name
 
 mkdir -p "$out"
 rm -f "$out"/*.whl "$out"/.*.part
+dists=()
 for pair in $wheels; do
   url="${pair#*@}"
   file="${url##*/}"
@@ -58,6 +62,14 @@ for pair in $wheels; do
   dist="${file%%-*}"
   dist="${dist//_/-}"
   [[ "$dist" =~ ^[a-z0-9][a-z0-9-]*$ ]] || die "cannot read a distribution name from $file"
+  dists+=("$dist")
+done
+for dist in $local_plugins; do
+  [[ "$dist" =~ ^[a-z0-9][a-z0-9-]*$ ]] || die "not a distribution name in HEGEMONY_LOCAL_PLUGINS: $dist"
+  dists+=("$dist")
+done
+
+for dist in "${dists[@]}"; do
   src="$(source_of "$dist")"
   echo "plugin wheel $dist: building from ${src#"$plugins_parent"/}"
   # The wheel is built inside the container and comes out as a tar stream on
