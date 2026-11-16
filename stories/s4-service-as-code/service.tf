@@ -32,8 +32,8 @@ variable "service_address" {
   description = "Host address the service answers on, announced as a /32."
 
   validation {
-    condition     = can(regex("^10\\.255\\.100\\.([1-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-4])$", var.service_address))
-    error_message = "service_address is a host address in 10.255.100.0/24."
+    condition     = can(regex("^10\\.255\\.100\\.(1[7-9]|2[0-9]|30)$", var.service_address))
+    error_message = "service_address is a host address in 10.255.100.16/28, the range this flow owns."
   }
 }
 

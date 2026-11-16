@@ -175,6 +175,8 @@ def _no_git_site(spec: dict[str, Any]) -> None:
         (lambda s: s["service_catalog"]["services"][0].update(id="portal\n"), "s4 service name"),
         (lambda s: _address(s).update(id="portal-primary\n"), "id must match"),
         (_wider_prefixes, "which s4 accepts"),
+        # Inside the service prefixes but outside s4's own range: s1's address.
+        (lambda s: _address(s).update(address="10.255.100.1"), "which s4 accepts"),
     ],
 )
 def test_catalogue_mistakes_are_refused(change: Any, message: str) -> None:

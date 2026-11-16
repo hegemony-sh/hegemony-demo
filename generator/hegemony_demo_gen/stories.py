@@ -82,6 +82,7 @@ def _context(model: Model, org_slug: str) -> dict[str, Any]:
         "email": model.email,
         "lab": model.lab,
         "catalog": model.catalog,
+        "s4_addresses": str(catalogmod.S4_ADDRESSES),
         "catalog_types": {"service": catalogmod.SERVICE_TYPE, "address": catalogmod.ADDRESS_TYPE},
         "git_backup_url": labmod.sandbox_git_url(model.lab, labmod.GIT_BACKUP_REPO),
         "git_backup_web": f"http://localhost:{labmod.GIT_PORT}/{labmod.GIT_ORG}/"

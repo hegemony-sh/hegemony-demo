@@ -363,7 +363,10 @@ flows:
               evidence_required: true
           # A router that kept an address it should have dropped (an earlier
           # removal that failed) fails the run instead of passing unnoticed:
-          # every service address the router carries is the applied one.
+          # every address the router carries in this flow's own range
+          # ([[ s4_addresses ]]) is the applied one. Addresses other flows put
+          # in the rest of [[ lab.service_prefixes ]] (s1's) are not this
+          # flow's to judge.
           - id: no_leftover
             name: No old address left?
             type: step
@@ -381,7 +384,7 @@ flows:
               operator: contains
               expected: '"{{ steps.apply.output.outputs.address }}"'
               match_scope: lines
-              line_filter: '"10\.255\.100\.'
+              line_filter: '"10\.255\.100\.(1[6-9]|2[0-9]|3[01])/'
               min_lines: 1
               message: >-
                 A router still carries a service address other than
@@ -656,7 +659,7 @@ flows:
               field_type: core.text
               required: true
               default_value: 10.255.100.20
-              description: A host address in [[ lab.service_prefixes ]], announced as a /32.
+              description: A host address in [[ s4_addresses ]], the part of [[ lab.service_prefixes ]] this flow owns, announced as a /32.
               config:
                 validations:
                   combinator: AND
@@ -665,7 +668,7 @@ flows:
                       op: regex
                       operand:
                         kind: value
-                        value: "^10\\.255\\.100\\.([1-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-4])$"
+                        value: "^10\\.255\\.100\\.(1[7-9]|2[0-9]|30)$"
 [%- endif %]
           - id: f_targets
             kind: field

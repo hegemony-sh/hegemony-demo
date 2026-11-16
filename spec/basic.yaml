@@ -156,8 +156,9 @@ ip_plan:
 # The service catalogue: two repository-defined inventory types, services and
 # the addresses they answer on, in the Git inventory next to the planned
 # sites. When enabled, the s4 form picks a service and one of its addresses
-# from them instead of typing both. Addresses must be hosts in
-# lab.service_prefixes; exactly one per service is primary (the form default).
+# from them instead of typing both. Addresses must be hosts in the range s4
+# owns, 10.255.100.16/28 (inside lab.service_prefixes, apart from s1's
+# address); exactly one per service is primary (the form default).
 # It needs a platform release and a Git inventory plugin (0.5.0 or later) in
 # platform.env that read these files: an older release fails the whole Git
 # provider, the planned sites included (tests/test_catalog.py checks the pins).

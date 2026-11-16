@@ -167,7 +167,9 @@ Terraform), and Hegemony keeps the state. FRR has no OpenTofu provider, so
 OpenTofu decides and Hegemony writes what it decided to the routers.*
 
 1. As **`noc`**, open **Service as code** and run it with the defaults: service
-   `portal` on `10.255.100.20`, on both Delphi edges.
+   `portal` on `10.255.100.20`, on both Delphi edges. The flow owns
+   `10.255.100.16/28` and accepts only addresses in it, so the address from
+   story 1 (`10.255.100.1`) stays outside its checks.
 2. **What the routers carry** reads each edge's loopback as JSON and hands it
    to **Plan**, where OpenTofu checks that no router already uses the address
    for something else. The plan compares the declaration with the state
@@ -181,7 +183,7 @@ OpenTofu decides and Hegemony writes what it decided to the routers.*
    what the apply produced (its `address` and `description` outputs) to both
    edges.
 5. **What the routers carry now** reads them again, **No old address left?**
-   checks that each edge carries no service address but the applied one,
+   checks that each edge carries no address in the flow's range but the applied one,
    **Plan again** finds nothing left to change, and **Announced upstream?**
    checks that each edge sends the route on to the provider: FRR's view of the
    route lists the peers it is advertised to.
