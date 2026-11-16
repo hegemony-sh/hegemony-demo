@@ -42,9 +42,11 @@ ENVIRONMENTS = ("production", "staging")
 PURPOSES = ("primary", "replacement")
 # Each address is announced as a host route.
 HOST_PREFIX_LENGTH = 32
-# The addresses the s4 flow's OpenTofu validation and form accept: hosts .1 to
-# .254 of this network, whatever lab.service_prefixes says.
-S4_ADDRESSES = ipaddress.IPv4Network("10.255.100.0/24")
+# The range the s4 flow owns: its OpenTofu validation and form accept the hosts
+# of this network, and its leftover check judges only addresses inside it. It is
+# kept apart from the rest of lab.service_prefixes, where s1 announces its
+# address (10.255.100.1 by default), so running s1 first does not fail s4.
+S4_ADDRESSES = ipaddress.IPv4Network("10.255.100.16/28")
 
 
 @dataclass(frozen=True)
