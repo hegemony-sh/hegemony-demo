@@ -4,16 +4,20 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
 # A platform image plus the demo's plugin wheels. The build context is the
-# directory fetch-wheels.sh fills (sha256-checked wheels from platform.env).
+# directory fetch-wheels.sh fills (sha256-checked wheels from platform.env);
+# the "constraints" context is plugin-constraints/, version limits for the
+# third-party packages those wheels pull in.
 # Dependencies resolve here, so a failure stops the bring-up before anything
 # running changes; nothing is installed at container start.
 ARG BASE_IMAGE
 FROM ${BASE_IMAGE}
 USER root
 RUN --mount=type=bind,target=/plugin-wheels \
+    --mount=type=bind,from=constraints,target=/plugin-constraints \
     set -eu; \
     set -- /plugin-wheels/*.whl; \
     [ -e "$1" ] || { echo "no plugin wheels in the build context" >&2; exit 1; }; \
     uv pip install --quiet --no-cache --python /opt/venv/bin/python \
+      --constraint /plugin-constraints/constraints.txt \
       --find-links /plugin-wheels "$@"
 USER appuser
