@@ -87,7 +87,8 @@ them restarting. `task up` is safe to run again.
   `172.28.103.0/24` (management), `10.255.1.0/24` (links) and `10.90.0.0/24`
   (servers); if one of them is in use on your machine (a VPN, for example),
   change `lab` in `spec/basic.yaml` (then `uv run demo-gen`), and `task reset`
-  and `task up`. The map is in [the lab topology](_generated/topology.md).
+  and `task up`. The map is at <http://localhost:3000/netops/lab>
+  ([source](_generated/topology.md)).
 - **A change is gone.** The routers start from their generated configuration
   every time they start: `task down` and `task up`, or `task lab:reset`, undo
   story 1 and story 2. That is on purpose.

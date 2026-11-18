@@ -6,13 +6,14 @@
 #
 # Seed the lab's Gitea, once per start and safe to repeat: the platform's user,
 # an organization, the inventory repository (refreshed from the pinned
-# inventory, deploy/lab/inventory/, whenever that changes) and an empty
-# repository for configuration backups.
+# inventory, deploy/lab/inventory/, whenever that changes), an empty
+# repository for configuration backups and one whose README is the lab map
+# (docs/_generated/topology.md), which Gitea shows with its diagrams drawn.
 # Runs in the Gitea image, against the server's data volume and its API.
 set -eu
 
 : "${GITEA_URL:?}" "${GIT_USER:?}" "${GIT_PASSWORD:?}" "${GIT_ORG:?}"
-: "${INVENTORY_REPO:?}" "${BACKUP_REPO:?}"
+: "${INVENTORY_REPO:?}" "${BACKUP_REPO:?}" "${LAB_REPO:?}"
 
 config=/data/gitea/conf/app.ini
 api="$GITEA_URL/api/v1"
@@ -38,7 +39,7 @@ if [ "$(status "$api/orgs/$GIT_ORG")" != 200 ]; then
   post "$api/orgs" "{\"username\": \"$GIT_ORG\", \"visibility\": \"public\"}"
   echo "gitea-seed: created organization $GIT_ORG"
 fi
-for repo in "$INVENTORY_REPO" "$BACKUP_REPO"; do
+for repo in "$INVENTORY_REPO" "$BACKUP_REPO" "$LAB_REPO"; do
   if [ "$(status "$api/repos/$GIT_ORG/$repo")" != 200 ]; then
     post "$api/orgs/$GIT_ORG/repos" \
       "{\"name\": \"$repo\", \"default_branch\": \"main\", \"auto_init\": true, \"private\": false}"
@@ -60,18 +61,32 @@ if [ -z "$has_site" ]; then
 fi
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
-remote="${GITEA_URL%%://*}://$auth@${GITEA_URL#*://}/$GIT_ORG/$INVENTORY_REPO.git"
-git clone -q "$remote" "$work/repo"
-cd "$work/repo"
+
+# Commit what is staged in the clone at $work/$1, if anything; $2 says what.
+publish() {
+  if git -C "$work/$1" diff --cached --quiet; then
+    echo "gitea-seed: $1 is current"
+  else
+    git -C "$work/$1" -c user.name="Lab seed" -c user.email="seed@lab.example" \
+      commit -q -m "$2"
+    git -C "$work/$1" push -q origin HEAD:main
+    echo "gitea-seed: $1 updated"
+  fi
+}
+clone() {
+  git clone -q "${GITEA_URL%%://*}://$auth@${GITEA_URL#*://}/$GIT_ORG/$1.git" "$work/$1"
+}
+
+clone "$INVENTORY_REPO"
+cd "$work/$INVENTORY_REPO"
 rm -rf inventory
 mkdir -p inventory
 cp -R /seed/inventory/. inventory/
 git add -A
-if git diff --cached --quiet; then
-  echo "gitea-seed: inventory is current"
-else
-  git -c user.name="Lab seed" -c user.email="seed@lab.example" \
-    commit -q -m "Inventory from the demo's pinned hegemony-demo-inventory release"
-  git push -q origin HEAD:main
-  echo "gitea-seed: inventory updated"
-fi
+publish "$INVENTORY_REPO" "Inventory from the demo's pinned hegemony-demo-inventory release"
+
+# The lab map, as the README Gitea shows on the repository's page.
+clone "$LAB_REPO"
+cp /seed/topology.md "$work/$LAB_REPO/README.md"
+git -C "$work/$LAB_REPO" add README.md
+publish "$LAB_REPO" "Lab map from docs/_generated/topology.md"

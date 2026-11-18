@@ -40,8 +40,8 @@ if ((ui_fancy)); then
     printf '  %sPassword: %stask password%s   %s(or: grep HEGEMONY_DEMO_PASSWORD %s)%s\n' \
       "$(ui_emoji 🔑)" "$ui_b" "$ui_r" "$ui_d" "$local_env" "$ui_r"
   fi
-  printf '\n  %sWalkthrough: %sdocs/walkthrough.md%s   Lab map: %sdocs/_generated/topology.md%s\n' \
-    "$(ui_emoji 📖)" "$ui_b" "$ui_r" "$ui_b" "$ui_r"
+  printf '\n  %sWalkthrough: %sdocs/walkthrough.md%s   Lab map: %s\n' \
+    "$(ui_emoji 📖)" "$ui_b" "$ui_r" "$(link http://localhost:3000/netops/lab)"
   printf '  %sStop: %stask down%s   Start: %stask up%s\n\n' "$(ui_emoji 🛑)" "$ui_b" "$ui_r" "$ui_b" "$ui_r"
   exit 0
 fi
@@ -65,6 +65,6 @@ else
 fi
 cat <<TEXT
 
-  Walkthrough: docs/walkthrough.md   Lab map: docs/_generated/topology.md
+  Walkthrough: docs/walkthrough.md   Lab map: http://localhost:3000/netops/lab
   Stop: task down   Start: task up
 TEXT

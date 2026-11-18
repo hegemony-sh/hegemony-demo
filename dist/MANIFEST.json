@@ -8,7 +8,7 @@
     "dist/demo.env": "38c6fd2347ec7efafbf06ed318e8ae199215be65ef6308392a377edeec8fa949",
     "dist/keycloak/realm.json": "e5836d36b9bf9009962395b863252099c86147b70668e15e32a779056d65aa76",
     "dist/lab/checks.txt": "70728c2f59e3bb0e9b3776280f1f7e7691109c579c1259985b6eaa7bb837f990",
-    "dist/lab/compose.yml": "0885def31d3575388b952a0f1469baa52724ab4b46366bb3ee5951c447dc631b",
+    "dist/lab/compose.yml": "e4131be25bc1dabf8340645d7649c6fb470695b8b0fddbbe9166cd15064cc4df",
     "dist/lab/frr/ath1-edge-01.conf": "fed18b2a68b6f8c851fe452781263bd6f729338b9bc00e3fc2bd1b5725dcdad1",
     "dist/lab/frr/dlp1-core-01.conf": "13b6a4cec24dc92dfea57faf806092110b51e7e5e26c0b92f4086ceababd858d",
     "dist/lab/frr/dlp1-edge-01.conf": "1d68e4213e7fcda431f8d131740b4fc131531cdf8160cb02c3f19ea145154726",

@@ -20,6 +20,8 @@ GIT_LOGIN = ("hegemony", "demo-git-login")
 GIT_ORG = "netops"
 GIT_INVENTORY_REPO = "inventory"
 GIT_BACKUP_REPO = "config-backups"
+# Holds only the lab map, as its README, so Gitea draws the diagrams.
+GIT_LAB_REPO = "lab"
 GIT_HOST = "gitea"
 GIT_PORT = 3000
 
@@ -290,11 +292,13 @@ def compose(model: Model) -> dict[str, Any]:
             "GIT_ORG": GIT_ORG,
             "INVENTORY_REPO": GIT_INVENTORY_REPO,
             "BACKUP_REPO": GIT_BACKUP_REPO,
+            "LAB_REPO": GIT_LAB_REPO,
         },
         "volumes": [
             "gitea-data:/data",
             "../../deploy/lab/gitea/seed.sh:/seed/seed.sh:ro",
             "../../deploy/lab/inventory:/seed/inventory:ro",
+            "../../docs/_generated/topology.md:/seed/topology.md:ro",
         ],
         "networks": ["mgmt"],
     }
@@ -471,8 +475,9 @@ def topology_page(model: Model, note: str) -> str:
         "## Around the network",
         "",
         f"- **Gitea**, <http://localhost:3000>: `{GIT_ORG}/{GIT_INVENTORY_REPO}` holds the",
-        "  planned sites the Git inventory provider reads, and",
-        f"  `{GIT_ORG}/{GIT_BACKUP_REPO}` the routers' configuration backups.",
+        "  planned sites the Git inventory provider reads,",
+        f"  `{GIT_ORG}/{GIT_BACKUP_REPO}` the routers' configuration backups, and",
+        f"  `{GIT_ORG}/{GIT_LAB_REPO}` this page, with the diagrams drawn.",
         "- **Mailpit**, <http://localhost:8025>: every mail the demo sends.",
         "",
     ]

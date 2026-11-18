@@ -26,7 +26,8 @@ and Ansible backups into Git.
 The operator is **Amphictyon Networks**, which runs the network for the
 city-states of ancient Greece. It has 4 organizations, 7 users, 6 sites and 15
 devices. Its lab runs 6 routers (one of them the upstream provider)
-and 2 servers, drawn in [the lab map](docs/_generated/topology.md). All names,
+and 2 servers, drawn in [the lab map](docs/_generated/topology.md), which the
+running demo also shows at <http://localhost:3000/netops/lab>. All names,
 addresses and credentials are made up for the demo.
 
 ## Requirements
