@@ -111,22 +111,48 @@ def test_render_replaces_only_the_two_pins() -> None:
     assert "HEGEMONY_PLATFORM_REPO=https://github.com/hegemony-sh/hegemony.git" in out
 
 
-def test_resolve_takes_the_wheel_from_the_plugin_release_the_platform_pins(
+def test_resolve_takes_the_wheels_from_the_plugin_releases_the_platform_pins(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    pins = {"hegemony-inventory-plugins": {"ref": "v0.6.0", "commit": "0" * 40}}
+    refs = {repo.split("/", 1)[1]: f"v0.{i}.0" for i, (repo, _) in enumerate(lr.WHEELS)}
+    pins = {name: {"ref": ref, "commit": "0" * 40} for name, ref in refs.items()}
+    assets: dict[str, list[dict]] = {}
+    expected = []
+    for repo, prefix in lr.WHEELS:
+        ref = refs[repo.split("/", 1)[1]]
+        name = f"{prefix}{ref[1:]}-py3-none-any.whl"
+        url = f"https://github.com/{repo}/releases/download/{ref}/{name}"
+        assets.setdefault(repo, []).append(_asset(name, url=url))
+        expected.append(f"{SHA}@{url}")
     answers = {
         "/repos/hegemony-sh/hegemony/releases?per_page=100": [
             _release("v9.9.0-rc.3", "2026-11-02T10:00:00Z"),
             _release("v9.9.0-rc.2", "2026-11-01T10:00:00Z"),
         ],
         "/repos/hegemony-sh/hegemony/contents/.github/plugin-pins.json?ref=v9.9.0-rc.3": pins,
-        "/repos/hegemony-sh/hegemony-inventory-plugins/releases/tags/v0.6.0": _release(
-            "v0.6.0", assets=[_asset("hegemony_inventory_git-0.6.0-py3-none-any.whl")]
-        ),
     }
-    monkeypatch.setattr(lr, "_get", lambda path, accept="": json.dumps(answers[path]).encode())
-    assert lr.resolve() == ("9.9.0-rc.3", f"{SHA}@{WHEEL_URL}")
+    for repo, repo_assets in assets.items():
+        ref = refs[repo.split("/", 1)[1]]
+        answers[f"/repos/{repo}/releases/tags/{ref}"] = _release(ref, assets=repo_assets)
+    calls: list[str] = []
+
+    def get(path: str, accept: str = "") -> bytes:
+        calls.append(path)
+        return json.dumps(answers[path]).encode()
+
+    monkeypatch.setattr(lr, "_get", get)
+    assert lr.resolve() == ("9.9.0-rc.3", " ".join(expected))
+    # One request per plugin release, however many wheels it supplies.
+    assert len(calls) == len(set(calls)) == len(answers)
+
+
+def test_the_demo_adds_a_plugin_from_each_plugin_repository() -> None:
+    assert {repo for repo, _ in lr.WHEELS} == {
+        "hegemony-sh/hegemony-inventory-plugins",
+        "hegemony-sh/hegemony-notification-plugins",
+        "hegemony-sh/hegemony-secret-plugins",
+        "hegemony-sh/hegemony-step-plugins",
+    }
 
 
 def test_check_fails_when_the_pin_is_older(
@@ -142,3 +168,13 @@ def test_check_fails_when_the_pin_is_older(
 
     assert lr.main(["latest_release.py", "write"]) == 0
     assert lr.main(["latest_release.py", "check"]) == 0
+
+
+def test_platform_env_pins_one_wheel_per_listed_plugin() -> None:
+    _, wheels = lr.pinned((ROOT / "platform.env").read_text())
+    names = [pair.rsplit("/", 1)[1] for pair in wheels.split()]
+    assert len(names) == len(lr.WHEELS)
+    for repo, prefix in lr.WHEELS:
+        matching = [pair for pair in wheels.split() if pair.rsplit("/", 1)[1].startswith(prefix)]
+        assert len(matching) == 1, prefix
+        assert f"https://github.com/{repo}/releases/download/" in matching[0]

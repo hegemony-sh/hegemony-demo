@@ -55,8 +55,11 @@ Log in as **`engineer`** and look around:
 - **Flows**: *Announce service prefix*, *Maintenance window*, *Service as
   code* and *Configuration backup*. Open one in the editor to see the graph
   the stories run.
-- **Plugins**: the step, inventory and notification plugins the platform runs,
-  among them the Git inventory plugin the demo adds.
+- **Plugins**: every step, inventory, notification and secret plugin the
+  Hegemony plugin repositories publish. The platform images ship most of them;
+  the demo adds the rest: the Git and NetBox inventory providers, the shoutrrr
+  and webhook notification presets, the 1Password secret backend and the
+  asyncssh and scrapli device transports. The stories use only some of them.
 
 Log out.
 

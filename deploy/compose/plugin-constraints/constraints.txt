@@ -1,0 +1,16 @@
+# SPDX-FileCopyrightText: 2026 Rexonix s.r.o.
+# SPDX-FileContributor: Jakub Trávník <jakub.travnik@gmail.com>
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Version limits for the third-party packages the demo's plugin wheels pull in
+# (Dockerfile.plugins passes this file to `uv pip install --constraint`). Only
+# for a dependency a released plugin wheel leaves open and a newer release
+# breaks; drop a line once the pinned plugin release carries the limit itself.
+
+# scrapli 2026.10.3 is scrapli 2, a rewrite without AsyncScrapli and without
+# the asyncssh transport. hegemony-transport-scrapli 0.38.1 asks for
+# scrapli[asyncssh]>=2024.7.30 with no upper bound, so it would get scrapli 2,
+# load fine and fail on its first connection. The step plugins cap it from
+# 0.46.0 on.
+scrapli<2026.10

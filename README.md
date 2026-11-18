@@ -153,7 +153,8 @@ uv run demo-gen --check   # fail if they are not current
 ## Versions and related repositories
 
 [`platform.env`](platform.env) pins the platform release, the extra plugin
-wheels and the inventory release. Demo releases follow the platform version:
+wheels and the inventory release. With those wheels the demo has every plugin
+of the four plugin repositories installed, not only the ones the stories use. Demo releases follow the platform version:
 `v1.0.0` runs platform 1.0.0, and `v1.0.0+demo.2` is a later demo fix for the
 same platform. These names illustrate the release convention; available
 releases are listed on the [Releases page](https://github.com/hegemony-sh/hegemony-demo/releases).

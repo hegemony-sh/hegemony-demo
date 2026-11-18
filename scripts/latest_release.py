@@ -14,7 +14,8 @@
 release candidates included, drafts not. Publication time rather than version
 order, because the repository still lists pre-launch releases with higher
 numbers than the 1.0.0 candidates. The plugin wheels the demo
-adds are not chosen separately: they come from the plugin releases that this
+adds (every plugin of the four plugin repositories that the images do not
+already ship) are not chosen separately: they come from the plugin releases that this
 platform release was built with (its .github/plugin-pins.json), so the wheel
 always matches the plugin SDK inside the images.
 
@@ -35,8 +36,20 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PLATFORM_REPO = "hegemony-sh/hegemony"
 INVENTORY_REPO = "hegemony-sh/hegemony-inventory-plugins"
-# The wheels the demo adds on top of the images: (plugin repository, wheel name prefix).
-WHEELS = ((INVENTORY_REPO, "hegemony_inventory_git-"),)
+NOTIFICATION_REPO = "hegemony-sh/hegemony-notification-plugins"
+STEP_REPO = "hegemony-sh/hegemony-step-plugins"
+# The wheels the demo adds on top of the images: (plugin repository, wheel name
+# prefix). The images already ship the other plugins of these four repositories,
+# so with these the demo runs every plugin they publish.
+WHEELS = (
+    (INVENTORY_REPO, "hegemony_inventory_git-"),
+    (INVENTORY_REPO, "hegemony_inventory_netbox-"),
+    (NOTIFICATION_REPO, "hegemony_notification_shoutrrr_presets-"),
+    (NOTIFICATION_REPO, "hegemony_notification_webhook_presets-"),
+    ("hegemony-sh/hegemony-secret-plugins", "hegemony_secret_1password-"),
+    (STEP_REPO, "hegemony_transport_asyncssh-"),
+    (STEP_REPO, "hegemony_transport_scrapli-"),
+)
 API = "https://api.github.com"
 VERSION = re.compile(r"^v?(\d+)\.(\d+)\.(\d+)(?:-rc\.(\d+))?$")
 
@@ -109,10 +122,12 @@ def resolve() -> tuple[str, str]:
         )
     )
     pairs = []
+    releases_by_repo: dict[str, dict] = {}
     for repo, prefix in WHEELS:
-        ref = pins[repo.split("/", 1)[1]]["ref"]
-        release = json.loads(_get(f"/repos/{repo}/releases/tags/{ref}"))
-        pairs.append(wheel_pair(release, prefix))
+        if repo not in releases_by_repo:
+            ref = pins[repo.split("/", 1)[1]]["ref"]
+            releases_by_repo[repo] = json.loads(_get(f"/repos/{repo}/releases/tags/{ref}"))
+        pairs.append(wheel_pair(releases_by_repo[repo], prefix))
     return version, " ".join(pairs)
 
 
