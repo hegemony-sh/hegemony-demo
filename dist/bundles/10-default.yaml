@@ -178,9 +178,7 @@ notification_destinations:
     smtp_use_starttls_ref: 'false'
 flows:
 - name: Announce service prefix
-  description: Advertise a service address on the edge routers after approval. Collects the running configuration
-    before and after the change, fails unless the change shows up in the comparison, and checks that the
-    core router learned the new route.
+  description: Advertise a service address on the edge routers after approval. Collects the running configuration before and after the change, fails unless the change shows up in the comparison, and checks that the core router learned the new route.
   tags:
     story: s1
   definition:
@@ -202,8 +200,7 @@ flows:
         position_y: 150
         params:
           title: Approve the service prefix announcement
-          message: Advertise the requested service address on the selected edge routers? The address and
-            the change reference are in this run's inputs.
+          message: Advertise the requested service address on the selected edge routers? The address and the change reference are in this run's inputs.
           timeout_seconds: 3600
         policy:
           timeout_sec: 3600
@@ -475,9 +472,7 @@ flows:
                   value: ^CHG-[0-9]+$
       edges: []
 - name: Maintenance window
-  description: Drain traffic away from the edge routers (OSPF max-metric), let it settle, watch reachability,
-    then wait for someone to close the window. If nobody does before the deadline, the window closes itself
-    and the routers are restored.
+  description: Drain traffic away from the edge routers (OSPF max-metric), let it settle, watch reachability, then wait for someone to close the window. If nobody does before the deadline, the window closes itself and the routers are restored.
   tags:
     story: s2
   definition:
@@ -594,8 +589,7 @@ flows:
         position_y: 195
         params:
           title: Close the maintenance window
-          message: The edge routers are drained. Approve to restore them now. Reject to keep them drained.
-            With no decision in 15 minutes the window closes itself and the routers are restored.
+          message: The edge routers are drained. Approve to restore them now. Reject to keep them drained. With no decision in 15 minutes the window closes itself and the routers are restored.
           timeout_seconds: 900
         policy:
           timeout_sec: 900
@@ -742,9 +736,7 @@ flows:
               kind: inventory.devices
       edges: []
 - name: Service as code
-  description: Declare a routed service in OpenTofu with its state kept in Hegemony. Change the routers
-    only where the declaration changed, or where a router no longer matches the stored state, and only
-    after approval. Then prove OpenTofu finds nothing left and the provider receives the route.
+  description: Declare a routed service in OpenTofu with its state kept in Hegemony. Change the routers only where the declaration changed, or where a router no longer matches the stored state, and only after approval. Then prove OpenTofu finds nothing left and the provider receives the route.
   tags:
     story: s4
   definition:
@@ -856,8 +848,7 @@ flows:
         cases:
         - id: c_dropped
           label: Dropped
-          when: (steps.plan.output.outputs.get('routers') or []) | reject('in', targets.service_targets
-            | map(attribute='name') | list) | list | length > 0
+          when: (steps.plan.output.outputs.get('routers') or []) | reject('in', targets.service_targets | map(attribute='name') | list) | list | length > 0
       - id: code_changed
         name: Code changed?
         type: branch
@@ -888,8 +879,7 @@ flows:
           command: show interface lo json
           operator: contains
           expected: '"{{ steps.plan.output.outputs.address }}"'
-          message: A router no longer carries what the stored state says; someone changed it outside this
-            flow.
+          message: A router no longer carries what the stored state says; someone changed it outside this flow.
         policy:
           timeout_sec: 60
           retries: 0
@@ -907,9 +897,7 @@ flows:
         position_y: -270
         params:
           title: 'Apply {{ inputs.service_name }}: {{ steps.plan.output.summary }}'
-          message: '{{ steps.plan.output.summary }}. Service {{ inputs.service_name }} on {{ inputs.service_address
-            }}/32. The plan step''s artifacts show each router''s change against the stored state; approving
-            applies exactly that plan and pushes the result to the edge routers.'
+          message: '{{ steps.plan.output.summary }}. Service {{ inputs.service_name }} on {{ inputs.service_address }}/32. The plan step''s artifacts show each router''s change against the stored state; approving applies exactly that plan and pushes the result to the edge routers.'
           timeout_seconds: 3600
         policy:
           timeout_sec: 3600
@@ -927,11 +915,8 @@ flows:
         position_x: 1365
         position_y: 105
         params:
-          title: Repair {{ inputs.service_name }} on {{ steps.matches.output.failed | map('replace', ':show
-            interface lo json', '') | join(', ') }}
-          message: The code did not change, but {{ steps.matches.output.failed | map('replace', ':show
-            interface lo json', '') | join(', ') }} no longer carries {{ steps.plan.output.outputs.address
-            }} as the stored state says. Approving pushes the stored state to the edge routers again.
+          title: Repair {{ inputs.service_name }} on {{ steps.matches.output.failed | map('replace', ':show interface lo json', '') | join(', ') }}
+          message: The code did not change, but {{ steps.matches.output.failed | map('replace', ':show interface lo json', '') | join(', ') }} no longer carries {{ steps.plan.output.outputs.address }} as the stored state says. Approving pushes the stored state to the edge routers again.
           timeout_seconds: 3600
         policy:
           timeout_sec: 3600
@@ -972,8 +957,7 @@ flows:
         cases:
         - id: c_moved
           label: Moved
-          when: steps.plan.output.outputs.get('address') and steps.plan.output.outputs.get('address')
-            != steps.apply.output.outputs.address
+          when: steps.plan.output.outputs.get('address') and steps.plan.output.outputs.get('address') != steps.apply.output.outputs.address
       - id: remove_old
         name: Remove the old address
         type: step
@@ -1074,8 +1058,7 @@ flows:
           match_scope: lines
           line_filter: '"10\.255\.100\.(1[6-9]|2[0-9]|3[01])/'
           min_lines: 1
-          message: A router still carries a service address other than {{ steps.apply.output.outputs.address
-            }}; remove it from the router's loopback and OSPF by hand.
+          message: A router still carries a service address other than {{ steps.apply.output.outputs.address }}; remove it from the router's loopback and OSPF by hand.
         policy:
           timeout_sec: 60
           retries: 0
@@ -1291,8 +1274,7 @@ flows:
           field_type: core.enum
           required: true
           default_value: portal
-          description: A service of the catalogue in the Git inventory; its id is written into the routers'
-            configuration.
+          description: A service of the catalogue in the Git inventory; its id is written into the routers' configuration.
           config:
             option_source:
               kind: inventory.objects
@@ -1343,9 +1325,7 @@ flows:
         - semantic_type: options_filter
           value: attr.service_id
 - name: Configuration backup
-  description: Read every selected router's running configuration with Ansible and commit it to the backup
-    repository in Git, one file per router. Nothing is committed when nothing changed, so each commit
-    is a change to the network.
+  description: Read every selected router's running configuration with Ansible and commit it to the backup repository in Git, one file per router. Nothing is committed when nothing changed, so each commit is a change to the network.
   tags:
     story: s5
   definition:

@@ -16,9 +16,7 @@ variables:
   description: Shared standard, inherited by every organization unless it sets SYSLOG_PRIMARY itself.
 flows:
 - name: Standards check
-  description: 'Report the effective network standards of the organization that runs it: its own settings
-    where it has them, the shared standards everywhere else. Owned by the shared standards organization;
-    every city runs it.'
+  description: 'Report the effective network standards of the organization that runs it: its own settings where it has them, the shared standards everywhere else. Owned by the shared standards organization; every city runs it.'
   tags:
     story: s3
   definition:
