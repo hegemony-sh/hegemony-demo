@@ -16,6 +16,9 @@ local_env="$compose_dir/.local/demo.env"
 # shellcheck source=deploy/compose/ui.sh
 source "$compose_dir/ui.sh"
 
+# Gitea's published port: the lab's Compose project reads the same variable.
+git_url="http://localhost:${GITEA_UI_PORT:-3000}"
+
 if ((ui_fancy)); then
   rule="$(printf '%58s' '')"
   ((ui_utf8)) && rule="${rule// /─}" || rule="${rule// /-}"
@@ -27,7 +30,7 @@ if ((ui_fancy)); then
   printf '    %s%-8s %s   %s(every notification lands here)%s\n' "$(ui_emoji 📬)" "Mail" \
     "$(link http://localhost:8025)" "$ui_d" "$ui_r"
   printf '    %s%-8s %s   %s(the lab'"'"'s inventory and config backups)%s\n\n' "$(ui_emoji 📁)" "Git" \
-    "$(link http://localhost:3000)" "$ui_d" "$ui_r"
+    "$(link "$git_url")" "$ui_d" "$ui_r"
   # The logins file: its title bold, the user names in colour.
   sed -e "1s/.*/  $(ui_emoji 👥)$ui_b&$ui_r/" \
     -e "1!s/^  \([a-z-]*\)\( *\)\([A-Z][a-z]*\)/    $ui_yellow\1$ui_r\2$ui_b\3$ui_r/" \
@@ -41,7 +44,7 @@ if ((ui_fancy)); then
       "$(ui_emoji 🔑)" "$ui_b" "$ui_r" "$ui_d" "$local_env" "$ui_r"
   fi
   printf '\n  %sWalkthrough: %sdocs/walkthrough.md%s   Lab map: %s\n' \
-    "$(ui_emoji 📖)" "$ui_b" "$ui_r" "$(link http://localhost:3000/netops/lab)"
+    "$(ui_emoji 📖)" "$ui_b" "$ui_r" "$(link "$git_url/netops/lab")"
   printf '  %sStop: %stask down%s   Start: %stask up%s\n\n' "$(ui_emoji 🛑)" "$ui_b" "$ui_r" "$ui_b" "$ui_r"
   exit 0
 fi
@@ -52,7 +55,7 @@ cat <<TEXT
 
     Web UI    http://localhost:8080
     Mail      http://localhost:8025   (every notification lands here)
-    Git       http://localhost:3000   (the lab's inventory and config backups)
+    Git       $git_url   (the lab's inventory and config backups)
 
 TEXT
 sed 's/^/  /' "$root/dist/logins.txt"
@@ -65,6 +68,6 @@ else
 fi
 cat <<TEXT
 
-  Walkthrough: docs/walkthrough.md   Lab map: http://localhost:3000/netops/lab
+  Walkthrough: docs/walkthrough.md   Lab map: $git_url/netops/lab
   Stop: task down   Start: task up
 TEXT

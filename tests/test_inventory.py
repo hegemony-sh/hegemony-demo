@@ -168,8 +168,6 @@ def test_the_lab_map_is_published_to_gitea() -> None:
     assert seed["environment"]["LAB_REPO"] == "lab"
     script = (ROOT / "deploy" / "lab" / "gitea" / "seed.sh").read_text()
     assert 'cp /seed/topology.md "$work/$LAB_REPO/README.md"' in script
-    banner = (ROOT / "deploy" / "compose" / "banner.sh").read_text()
-    assert banner.count("http://localhost:3000/netops/lab") == 2
 
 
 def test_the_lab_seeds_gitea_from_the_fetched_tree() -> None:

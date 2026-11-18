@@ -14,6 +14,8 @@ import stat
 import subprocess
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -144,3 +146,44 @@ def test_verify_on_a_terminal_prints_checks_without_a_detail(tmp_path: Path) -> 
     text = output.decode()
     assert "unbound variable" not in text, text
     assert "\033[32m✔\033[0m login server" in text, text
+
+
+def _banner(port: str | None, *, terminal: bool) -> str:
+    env = {k: v for k, v in os.environ.items() if k not in ("GITEA_UI_PORT", "NO_COLOR")}
+    env |= {"TERM": "xterm-256color", "LANG": "C.UTF-8", "HEGEMONY_DEMO_SHOW_PASSWORD": "0"}
+    if port is not None:
+        env["GITEA_UI_PORT"] = port
+    command = ["bash", str(ROOT / "deploy/compose/banner.sh")]
+    if not terminal:
+        env["HEGEMONY_PLAIN"] = "1"
+        return subprocess.run(command, env=env, capture_output=True, text=True, check=True).stdout
+    controller, child = pty.openpty()
+    with subprocess.Popen(
+        command, env=env, stdin=subprocess.DEVNULL, stdout=child, stderr=child
+    ) as process:
+        os.close(child)
+        output = b""
+        while True:
+            try:
+                chunk = os.read(controller, 4096)
+            except OSError:
+                break
+            if not chunk:
+                break
+            output += chunk
+        assert process.wait(timeout=30) == 0, output
+    os.close(controller)
+    return output.decode()
+
+
+@pytest.mark.parametrize("terminal", [False, True], ids=["plain", "terminal"])
+@pytest.mark.parametrize(("port", "expected"), [(None, "3000"), ("3300", "3300")])
+def test_the_banner_links_gitea_on_its_published_port(
+    terminal: bool, port: str | None, expected: str
+) -> None:
+    # The lab publishes Gitea on ${GITEA_UI_PORT:-3000}; both links follow it.
+    text = _banner(port, terminal=terminal)
+    assert f"http://localhost:{expected}/netops/lab" in text, text
+    assert text.count(f"http://localhost:{expected}") == 2, text
+    if port is not None:
+        assert "localhost:3000" not in text, text
