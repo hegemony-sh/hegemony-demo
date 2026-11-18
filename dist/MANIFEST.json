@@ -1,8 +1,8 @@
 {
   "files": {
     "dist/bundles/00-organizations.yaml": "ebb129cb9e079a469168542e76b73cc2c62246ffb4b36f3299ad4a78a8eae142",
-    "dist/bundles/10-default.yaml": "fee73d793bc983cb319ac641fb69686d1128297e3c06bce6e4cb516b31d49375",
-    "dist/bundles/20-shared.yaml": "e0108ad6518d3a71beac12ee850a2974ed265c0fd0703275fe8d9922c5da2767",
+    "dist/bundles/10-default.yaml": "b3ab4295fb6fabee1869fe8651db6924548d20fa363bbe9acd71046e1c42485f",
+    "dist/bundles/20-shared.yaml": "41f0533074d05e5cb5a54459fb61f849ee14c906a7bdecd18676a0392cda3d4f",
     "dist/bundles/30-athens.yaml": "17470c069de559b8812e7d559ad53947f0a22b1a8fae73f4e092e7c4f20c3616",
     "dist/bundles/40-sparta.yaml": "fe1fad4641db9b55726c63036f514abe69b41795594928c6ee283adee7d4c17a",
     "dist/demo.env": "38c6fd2347ec7efafbf06ed318e8ae199215be65ef6308392a377edeec8fa949",

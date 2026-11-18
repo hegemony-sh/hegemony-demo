@@ -50,7 +50,17 @@ _Dumper.add_representer(str, _str_representer)
 
 
 def dump_yaml(data: Any) -> str:
-    return yaml.dump(data, Dumper=_Dumper, sort_keys=False, allow_unicode=True, width=100, indent=2)
+    # No folding: PyYAML splits a long quoted string at a space, which breaks a
+    # ``{{ secret('...') }}`` ref over two lines. It reads back the same, but
+    # is hard to read, grep and diff.
+    return yaml.dump(
+        data,
+        Dumper=_Dumper,
+        sort_keys=False,
+        allow_unicode=True,
+        width=float("inf"),
+        indent=2,
+    )
 
 
 def dump_json(data: Any) -> str:
