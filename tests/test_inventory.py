@@ -158,6 +158,20 @@ def test_the_seed_refuses_a_tree_without_a_site_record() -> None:
     assert seed.index("no site record") < seed.index("rm -rf inventory")
 
 
+def test_the_lab_map_is_published_to_gitea() -> None:
+    compose = yaml.safe_load((ROOT / "dist" / "lab" / "compose.yml").read_text())
+    seed = compose["services"]["gitea-seed"]
+    mount = "../../docs/_generated/topology.md:/seed/topology.md:ro"
+    assert mount in seed["volumes"]
+    # The mount is relative to the lab's Compose file.
+    assert (ROOT / "dist" / "lab" / mount.split(":")[0]).resolve().is_file()
+    assert seed["environment"]["LAB_REPO"] == "lab"
+    script = (ROOT / "deploy" / "lab" / "gitea" / "seed.sh").read_text()
+    assert 'cp /seed/topology.md "$work/$LAB_REPO/README.md"' in script
+    banner = (ROOT / "deploy" / "compose" / "banner.sh").read_text()
+    assert banner.count("http://localhost:3000/netops/lab") == 2
+
+
 def test_the_lab_seeds_gitea_from_the_fetched_tree() -> None:
     compose = yaml.safe_load((ROOT / "dist" / "lab" / "compose.yml").read_text())
     volumes = compose["services"]["gitea-seed"]["volumes"]

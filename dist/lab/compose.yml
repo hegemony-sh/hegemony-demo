@@ -308,10 +308,12 @@ services:
       GIT_ORG: netops
       INVENTORY_REPO: inventory
       BACKUP_REPO: config-backups
+      LAB_REPO: lab
     volumes:
     - gitea-data:/data
     - ../../deploy/lab/gitea/seed.sh:/seed/seed.sh:ro
     - ../../deploy/lab/inventory:/seed/inventory:ro
+    - ../../docs/_generated/topology.md:/seed/topology.md:ro
     networks:
     - mgmt
   mailpit:

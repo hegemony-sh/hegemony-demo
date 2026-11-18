@@ -86,6 +86,7 @@ flowchart LR
 ## Around the network
 
 - **Gitea**, <http://localhost:3000>: `netops/inventory` holds the
-  planned sites the Git inventory provider reads, and
-  `netops/config-backups` the routers' configuration backups.
+  planned sites the Git inventory provider reads,
+  `netops/config-backups` the routers' configuration backups, and
+  `netops/lab` this page, with the diagrams drawn.
 - **Mailpit**, <http://localhost:8025>: every mail the demo sends.
