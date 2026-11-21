@@ -294,18 +294,6 @@ pinned() { # key file
 
 # ------------------------------------------------------------------ settings
 
-detect_docker_gid() {
-  if [ -n "${DOCKER_GID:-}" ]; then
-    echo "$DOCKER_GID"
-  elif [ -S /var/run/docker.sock ] && stat -c %g /var/run/docker.sock >/dev/null 2>&1; then
-    stat -c %g /var/run/docker.sock
-  elif [ -S /var/run/docker.sock ] && stat -f %g /var/run/docker.sock >/dev/null 2>&1; then
-    stat -f %g /var/run/docker.sock
-  else
-    echo 999
-  fi
-}
-
 random_hex() {
   # 64 hex digits (32 bytes) from the kernel's random source.
   LC_ALL=C tr -dc '0-9a-f' </dev/urandom 2>/dev/null | head -c 64 || true
@@ -417,7 +405,6 @@ write_local_env() { # demo_root platform_dir platform_version
       echo "HEGEMONY_REGISTRY_TOKEN_KEY=$registry_key"
       echo "HEGEMONY_PLATFORM_DIR=$2"
       [ -z "$3" ] || echo "HEGEMONY_PLATFORM_VERSION=$3"
-      echo "DOCKER_GID=$(detect_docker_gid)"
       if [ -n "$host_address" ]; then
         # Devices outside this machine fetch download links through the web
         # UI's proxy, so its port listens on every interface.
