@@ -16,23 +16,6 @@
 
 name: hegemony-demo
 
-# Docker Desktop hands the socket to containers with a group the image does not
-# know. Start as root, join the socket's group, then drop to appuser.
-x-demo-user: &demo-user
-  user: root
-  entrypoint:
-    - /bin/sh
-    - -ec
-    - |
-      if [ -S /var/run/docker.sock ]; then
-        SUPP_GROUPS="--groups $(stat -c %g /var/run/docker.sock)"
-      else
-        SUPP_GROUPS="--init-groups"
-      fi
-      exec setpriv --reuid appuser --regid appuser $$SUPP_GROUPS \
-        env HOME=/home/appuser "$@"
-    - demo-user
-
 services:
   keycloak:
     environment:
@@ -48,7 +31,6 @@ services:
       KEYCLOAK_IMPORTED_USERS: ${KEYCLOAK_IMPORTED_USERS:?}
 
   api:
-    <<: *demo-user
     image: hegemony-demo-api:${HEGEMONY_IMAGE_TAG:?HEGEMONY_IMAGE_TAG is required}
     pull_policy: never
     build:
@@ -78,7 +60,6 @@ services:
       lab: {}
 
   worker:
-    <<: *demo-user
     image: hegemony-demo-worker:${HEGEMONY_IMAGE_TAG:?HEGEMONY_IMAGE_TAG is required}
     pull_policy: never
     build:
