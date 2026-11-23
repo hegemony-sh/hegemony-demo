@@ -67,6 +67,7 @@ When it is done:
 | Hegemony | <http://localhost:8080> |
 | Mail sent by the demo | <http://localhost:8025> |
 | Password | printed by the installer; later `task password` in the demo directory |
+| Keycloak admin console | <http://localhost:8081/admin/>, user `admin`; password printed by the installer, later `task admin-password` |
 
 Every user has the same password, generated on your machine. The users are
 listed in [the cast](docs/_generated/cast.md): `noc` runs changes, `approver`
@@ -111,7 +112,8 @@ From the demo directory (`./hegemony-demo/demo`; the platform's files are in
 | `task reset` (deletes all demo data) | `deploy/compose/compose.sh down --volumes --remove-orphans`, then `deploy/lab/lab.sh down --volumes --remove-orphans` |
 | `task logs -- api` | `deploy/compose/compose.sh logs -f api` |
 | `task restart-worker` | `deploy/compose/compose.sh restart worker` |
-| `task password` | `grep PASSWORD deploy/compose/.local/demo.env` |
+| `task password` | `grep HEGEMONY_DEMO_PASSWORD deploy/compose/.local/demo.env` |
+| `task admin-password` | `grep KEYCLOAK_ADMIN_PASSWORD deploy/compose/.local/demo.env` |
 | `task check` (checks only, runs no flow) | `deploy/compose/verify.sh` |
 | `task up:local` (platform built from your checkout, see [CONTRIBUTING](CONTRIBUTING.md#run-the-demo-on-an-unreleased-platform-change)) | `HEGEMONY_PLATFORM_BUILD=local deploy/compose/up.sh` |
 

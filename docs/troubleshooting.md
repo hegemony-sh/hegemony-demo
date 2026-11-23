@@ -67,6 +67,9 @@ them restarting. `task up` is safe to run again.
 ## I cannot log in
 
 - The password is `task password`. It is the same for every user.
+- The Keycloak admin console (<http://localhost:8081/admin/>) has its own
+  login: user `admin`, password `task admin-password`. It is not one of the
+  demo users.
 - The login page is at `localhost:8081` and the UI at `localhost:8080`. Open
   the UI exactly as <http://localhost:8080>; `127.0.0.1:8080` or another name
   breaks the login redirect.
