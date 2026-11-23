@@ -88,6 +88,12 @@ tasks:
     cmds:
       - sed -n 's/^HEGEMONY_DEMO_PASSWORD=//p' "{{.TASKFILE_DIR}}/deploy/compose/.local/demo.env"
 
+  admin-password:
+    desc: Print the Keycloak admin console's password (user admin)
+    silent: true
+    cmds:
+      - sed -n 's/^KEYCLOAK_ADMIN_PASSWORD=//p' "{{.TASKFILE_DIR}}/deploy/compose/.local/demo.env"
+
   # ------------------------------------------------------------- development
   setup:
     desc: Install the Python tools and the pre-commit hooks

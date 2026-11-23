@@ -4,9 +4,10 @@
 #
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
-# Print where the demo is and how to log in. The password itself is printed
-# only when HEGEMONY_DEMO_SHOW_PASSWORD=1 (install.sh sets it once); otherwise
-# this says where to read it.
+# Print where the demo is and how to log in. The passwords themselves (the
+# demo users' and the Keycloak console's) are printed only when
+# HEGEMONY_DEMO_SHOW_PASSWORD=1 (install.sh sets it once); otherwise this says
+# where to read them.
 set -euo pipefail
 
 compose_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -18,6 +19,13 @@ source "$compose_dir/ui.sh"
 
 # Gitea's published port: the lab's Compose project reads the same variable.
 git_url="http://localhost:${GITEA_UI_PORT:-3000}"
+keycloak_url="http://localhost:8081/admin/"
+# The Keycloak console's user name: the demo's settings.
+keycloak_admin="$(sed -n 's/^KEYCLOAK_ADMIN=//p' "$compose_dir/.env.demo" | tail -n 1)"
+keycloak_admin="${keycloak_admin:-admin}"
+
+# A value install.sh wrote to the local settings.
+local_value() { sed -n "s/^$1=//p" "$local_env" 2>/dev/null | tail -n 1; }
 
 if ((ui_fancy)); then
   rule="$(printf '%58s' '')"
@@ -37,11 +45,19 @@ if ((ui_fancy)); then
     -e "2,\$s/^\([^ ]\)/  \1/" "$root/dist/logins.txt"
   echo
   if [[ "${HEGEMONY_DEMO_SHOW_PASSWORD:-0}" == 1 ]]; then
-    password="$(sed -n 's/^HEGEMONY_DEMO_PASSWORD=//p' "$local_env" | tail -n 1)"
-    printf '  %sPassword: %s%s%s\n' "$(ui_emoji 🔑)" "$ui_b$ui_yellow" "$password" "$ui_r"
+    printf '  %sPassword: %s%s%s\n' "$(ui_emoji 🔑)" "$ui_b$ui_yellow" \
+      "$(local_value HEGEMONY_DEMO_PASSWORD)" "$ui_r"
   else
     printf '  %sPassword: %stask password%s   %s(or: grep HEGEMONY_DEMO_PASSWORD %s)%s\n' \
       "$(ui_emoji 🔑)" "$ui_b" "$ui_r" "$ui_d" "$local_env" "$ui_r"
+  fi
+  printf '\n  %sKeycloak console %s\n' "$(ui_emoji 🔐)" "$(link "$keycloak_url")"
+  printf '    User:     %s%s%s\n' "$ui_b$ui_yellow" "$keycloak_admin" "$ui_r"
+  if [[ "${HEGEMONY_DEMO_SHOW_PASSWORD:-0}" == 1 ]]; then
+    printf '    Password: %s%s%s\n' "$ui_b$ui_yellow" "$(local_value KEYCLOAK_ADMIN_PASSWORD)" "$ui_r"
+  else
+    printf '    Password: %stask admin-password%s   %s(or: grep KEYCLOAK_ADMIN_PASSWORD %s)%s\n' \
+      "$ui_b" "$ui_r" "$ui_d" "$local_env" "$ui_r"
   fi
   printf '\n  %sWalkthrough: %sdocs/walkthrough.md%s   Lab map: %s\n' \
     "$(ui_emoji 📖)" "$ui_b" "$ui_r" "$(link "$git_url/netops/lab")"
@@ -61,10 +77,17 @@ TEXT
 sed 's/^/  /' "$root/dist/logins.txt"
 echo
 if [[ "${HEGEMONY_DEMO_SHOW_PASSWORD:-0}" == 1 ]]; then
-  password="$(sed -n 's/^HEGEMONY_DEMO_PASSWORD=//p' "$local_env" | tail -n 1)"
-  echo "  Password: $password"
+  echo "  Password: $(local_value HEGEMONY_DEMO_PASSWORD)"
 else
   echo "  Password: task password   (or: grep HEGEMONY_DEMO_PASSWORD $local_env)"
+fi
+echo
+echo "  Keycloak console $keycloak_url"
+echo "    User:     $keycloak_admin"
+if [[ "${HEGEMONY_DEMO_SHOW_PASSWORD:-0}" == 1 ]]; then
+  echo "    Password: $(local_value KEYCLOAK_ADMIN_PASSWORD)"
+else
+  echo "    Password: task admin-password   (or: grep KEYCLOAK_ADMIN_PASSWORD $local_env)"
 fi
 cat <<TEXT
 

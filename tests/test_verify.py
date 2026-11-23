@@ -187,3 +187,13 @@ def test_the_banner_links_gitea_on_its_published_port(
     assert text.count(f"http://localhost:{expected}") == 2, text
     if port is not None:
         assert "localhost:3000" not in text, text
+
+
+@pytest.mark.parametrize("terminal", [False, True], ids=["plain", "terminal"])
+def test_the_banner_shows_the_keycloak_console_login(terminal: bool) -> None:
+    # The console's user comes from .env.demo; its password stays in demo.env.
+    text = _banner(None, terminal=terminal)
+    assert "http://localhost:8081/admin/" in text, text
+    assert "admin" in text.split("Keycloak console", 1)[1], text
+    assert "task admin-password" in text, text
+    assert "grep KEYCLOAK_ADMIN_PASSWORD" in text, text
