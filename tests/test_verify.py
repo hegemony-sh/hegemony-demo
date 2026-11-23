@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import pty
+import re
 import shutil
 import stat
 import subprocess
@@ -194,6 +195,8 @@ def test_the_banner_shows_the_keycloak_console_login(terminal: bool) -> None:
     # The console's user comes from .env.demo; its password stays in demo.env.
     text = _banner(None, terminal=terminal)
     assert "http://localhost:8081/admin/" in text, text
-    assert "admin" in text.split("Keycloak console", 1)[1], text
+    # Without colour codes, so the whole line can be matched.
+    lines = re.sub(r"\x1b\[[0-9;]*m", "", text).splitlines()
+    assert "    User:     admin" in [line.rstrip("\r") for line in lines], text
     assert "task admin-password" in text, text
     assert "grep KEYCLOAK_ADMIN_PASSWORD" in text, text
