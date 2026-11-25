@@ -149,11 +149,15 @@ def test_verify_on_a_terminal_prints_checks_without_a_detail(tmp_path: Path) -> 
     assert "\033[32m✔\033[0m login server" in text, text
 
 
-def _banner(port: str | None, *, terminal: bool) -> str:
-    env = {k: v for k, v in os.environ.items() if k not in ("GITEA_UI_PORT", "NO_COLOR")}
+PORT_VARIABLES = ("GITEA_UI_PORT", "MAILPIT_UI_PORT", "CONSOLE_UI_PORT")
+
+
+def _banner(port: str | None, *, terminal: bool, **ports: str) -> str:
+    env = {k: v for k, v in os.environ.items() if k not in (*PORT_VARIABLES, "NO_COLOR")}
     env |= {"TERM": "xterm-256color", "LANG": "C.UTF-8", "HEGEMONY_DEMO_SHOW_PASSWORD": "0"}
     if port is not None:
         env["GITEA_UI_PORT"] = port
+    env |= ports
     command = ["bash", str(ROOT / "deploy/compose/banner.sh")]
     if not terminal:
         env["HEGEMONY_PLAIN"] = "1"
@@ -188,6 +192,18 @@ def test_the_banner_links_gitea_on_its_published_port(
     assert text.count(f"http://localhost:{expected}") == 2, text
     if port is not None:
         assert "localhost:3000" not in text, text
+
+
+@pytest.mark.parametrize("terminal", [False, True], ids=["plain", "terminal"])
+def test_the_banner_links_mail_and_console_on_their_published_ports(terminal: bool) -> None:
+    default = _banner(None, terminal=terminal)
+    assert "http://localhost:8025" in default, default
+    assert "http://localhost:8182" in default, default
+    moved = _banner(None, terminal=terminal, MAILPIT_UI_PORT="8125", CONSOLE_UI_PORT="8282")
+    assert "http://localhost:8125" in moved, moved
+    assert "http://localhost:8282" in moved, moved
+    assert "localhost:8025" not in moved, moved
+    assert "localhost:8182" not in moved, moved
 
 
 @pytest.mark.parametrize("terminal", [False, True], ids=["plain", "terminal"])

@@ -214,7 +214,9 @@ function open(name) {
     tab.type = "button";
     tab.className = "tab";
     tab.setAttribute("role", "tab");
-    tab.title = `${node.owner}, ${node.kind}, ${node.management}`;
+    tab.title = `${node.owner}, ${node.kind}, ${node.management}. Delete closes this tab.`;
+    // The × is for the mouse; on the keyboard, Delete closes the focused tab.
+    tab.setAttribute("aria-keyshortcuts", "Delete");
     const dot = document.createElement("span");
     dot.className = "dot";
     dot.style.background = colours.get(node.org);
@@ -229,6 +231,17 @@ function open(name) {
         shut(name);
       } else {
         show(name);
+      }
+    });
+    tab.addEventListener("keydown", (event) => {
+      if (event.key === "Delete") {
+        event.preventDefault();
+        shut(name);
+        // Keep the keyboard on the tabs: focus the tab that is now shown.
+        const next = active && sessions.get(active);
+        if (next) {
+          next.tab.focus();
+        }
       }
     });
     tab.addEventListener("auxclick", (event) => {
