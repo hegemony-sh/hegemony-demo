@@ -8,13 +8,14 @@
     "dist/demo.env": "38c6fd2347ec7efafbf06ed318e8ae199215be65ef6308392a377edeec8fa949",
     "dist/keycloak/realm.json": "e5836d36b9bf9009962395b863252099c86147b70668e15e32a779056d65aa76",
     "dist/lab/checks.txt": "70728c2f59e3bb0e9b3776280f1f7e7691109c579c1259985b6eaa7bb837f990",
-    "dist/lab/compose.yml": "e4131be25bc1dabf8340645d7649c6fb470695b8b0fddbbe9166cd15064cc4df",
+    "dist/lab/compose.yml": "54fe6d2a9fd26641c02a01eed5624a0b332f600499d06f1480a0c303abfedf87",
     "dist/lab/frr/ath1-edge-01.conf": "fed18b2a68b6f8c851fe452781263bd6f729338b9bc00e3fc2bd1b5725dcdad1",
     "dist/lab/frr/dlp1-core-01.conf": "13b6a4cec24dc92dfea57faf806092110b51e7e5e26c0b92f4086ceababd858d",
     "dist/lab/frr/dlp1-edge-01.conf": "1d68e4213e7fcda431f8d131740b4fc131531cdf8160cb02c3f19ea145154726",
     "dist/lab/frr/dlp1-edge-02.conf": "5f93a7b424a682bf2113d67f51f585bda62d9a43533ffbb73a69edf7e32cabda",
     "dist/lab/frr/hermes-isp.conf": "1e862664f2ddf7d922c1ab6b516083b7fc54339cf900469970267fc2aa5147b5",
     "dist/lab/frr/spa1-edge-01.conf": "2a8743df258d0d48e51d3e0c6b93ab819aaaa6d0bf5c797e7173480eb09d521d",
+    "dist/lab/sshwifty.json": "7eb22cfadde61ade8d796a1c2fb3103de3e07d4351f43b5ddbd5cb51bf2fda17",
     "dist/logins.txt": "0805674fa3c9a4a2e0e3f99f9001df4069c8bb14291b6f7ee88056c253d65efa",
     "dist/summary.json": "8fc2e8afe59d3b357cf6194fa9ae94dd057800e064435b8f5dbffc0689005c8e"
   }

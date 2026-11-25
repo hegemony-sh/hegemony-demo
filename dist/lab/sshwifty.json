@@ -1,0 +1,108 @@
+{
+  "DialTimeout": 10,
+  "OnlyAllowPresetRemotes": true,
+  "Presets": [
+    {
+      "Host": "172.28.103.28:22",
+      "Meta": {
+        "Authentication": "Password",
+        "Encoding": "utf-8",
+        "Password": "demo-router-login",
+        "User": "netops"
+      },
+      "Title": "hermes-isp (router, upstream provider)",
+      "Type": "SSH"
+    },
+    {
+      "Host": "172.28.103.21:22",
+      "Meta": {
+        "Authentication": "Password",
+        "Encoding": "utf-8",
+        "Password": "demo-router-login",
+        "User": "netops"
+      },
+      "Title": "dlp1-edge-01 (router, Amphictyon Networks)",
+      "Type": "SSH"
+    },
+    {
+      "Host": "172.28.103.22:22",
+      "Meta": {
+        "Authentication": "Password",
+        "Encoding": "utf-8",
+        "Password": "demo-router-login",
+        "User": "netops"
+      },
+      "Title": "dlp1-edge-02 (router, Amphictyon Networks)",
+      "Type": "SSH"
+    },
+    {
+      "Host": "172.28.103.23:22",
+      "Meta": {
+        "Authentication": "Password",
+        "Encoding": "utf-8",
+        "Password": "demo-router-login",
+        "User": "netops"
+      },
+      "Title": "dlp1-core-01 (router, Amphictyon Networks)",
+      "Type": "SSH"
+    },
+    {
+      "Host": "172.28.103.24:22",
+      "Meta": {
+        "Authentication": "Password",
+        "Encoding": "utf-8",
+        "Password": "demo-device-login",
+        "User": "netops"
+      },
+      "Title": "ath1-edge-01 (router, Athens)",
+      "Type": "SSH"
+    },
+    {
+      "Host": "172.28.103.25:22",
+      "Meta": {
+        "Authentication": "Password",
+        "Encoding": "utf-8",
+        "Password": "demo-device-login",
+        "User": "netops"
+      },
+      "Title": "spa1-edge-01 (router, Sparta)",
+      "Type": "SSH"
+    },
+    {
+      "Host": "172.28.103.26:22",
+      "Meta": {
+        "Authentication": "Password",
+        "Encoding": "utf-8",
+        "Password": "demo-router-login",
+        "User": "netops"
+      },
+      "Title": "dlp1-srv-01 (server, Amphictyon Networks)",
+      "Type": "SSH"
+    },
+    {
+      "Host": "172.28.103.27:22",
+      "Meta": {
+        "Authentication": "Password",
+        "Encoding": "utf-8",
+        "Password": "demo-router-login",
+        "User": "netops"
+      },
+      "Title": "dlp1-srv-02 (server, Amphictyon Networks)",
+      "Type": "SSH"
+    }
+  ],
+  "Servers": [
+    {
+      "HeartbeatTimeout": 10,
+      "InitialTimeout": 10,
+      "ListenInterface": "0.0.0.0",
+      "ListenPort": 8182,
+      "ReadDelay": 10,
+      "ReadTimeout": 120,
+      "ServerMessage": "Hegemony demo lab. Open Known remotes and pick a router or a server.",
+      "WriteDelay": 10,
+      "WriteTimeout": 120
+    }
+  ],
+  "SharedKey": ""
+}

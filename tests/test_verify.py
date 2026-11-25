@@ -49,7 +49,7 @@ def test_verify_reports_each_failed_check_and_exits_1(tmp_path: Path) -> None:
     assert result.returncode == 1, result.stdout + result.stderr
     lines = result.stdout.splitlines()
     for check in ("services", "API ready", "lab network converged", "Gitea seeded",
-                  "login server", "web UI", "mail sink"):  # fmt: skip
+                  "login server", "web UI", "mail sink", "web terminal"):  # fmt: skip
         assert any(line.startswith(f"[hegemony-demo] FAIL {check}") for line in lines), (
             check,
             result.stdout,

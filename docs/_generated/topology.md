@@ -90,3 +90,5 @@ flowchart LR
   `netops/config-backups` the routers' configuration backups, and
   `netops/lab` this page, with the diagrams drawn.
 - **Mailpit**, <http://localhost:8025>: every mail the demo sends.
+- **Web terminal** (Sshwifty), <http://localhost:8182>: an SSH session
+  to any router or server in one click, logins filled in. Open **Known remotes**.

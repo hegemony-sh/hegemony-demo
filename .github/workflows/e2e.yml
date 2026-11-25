@@ -110,10 +110,11 @@ jobs:
       - name: The login server serves the demo realm
         run: curl -fsS http://localhost:8081/realms/hegemony/.well-known/openid-configuration >/dev/null
 
-      - name: The UI and the mail sink answer
+      - name: The UI, the mail sink and the web terminal answer
         run: |
           curl -fsS http://localhost:8080/ >/dev/null
           curl -fsS http://localhost:8025/api/v1/info >/dev/null
+          curl -fsS http://localhost:8182/ >/dev/null
 
       - name: Published ports bind loopback only
         run: |

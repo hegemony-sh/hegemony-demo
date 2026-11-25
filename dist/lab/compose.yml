@@ -330,6 +330,29 @@ services:
         - mailpit
     ports:
     - ${MAILPIT_BIND_ADDRESS:-127.0.0.1}:${MAILPIT_UI_PORT:-8025}:8025
+  terminal:
+    image: niruix/sshwifty:0.4.12-beta-release@sha256:1a3ef74bd2e2dea175dee02763f918933f5f28954c3f7788883daede382c3f6b
+    restart: unless-stopped
+    environment:
+      SSHWIFTY_CONFIG: /etc/sshwifty.json
+    volumes:
+    - ./sshwifty.json:/etc/sshwifty.json:ro
+    networks:
+    - mgmt
+    ports:
+    - 127.0.0.1:${TERMINAL_UI_PORT:-8182}:8182
+    healthcheck:
+      test:
+      - CMD
+      - wget
+      - -q
+      - -O
+      - /dev/null
+      - http://127.0.0.1:8182/
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
 networks:
   mgmt:
     name: hegemony-lab-mgmt

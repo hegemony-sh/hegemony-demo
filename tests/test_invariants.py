@@ -361,6 +361,23 @@ def test_each_lab_login_matches_its_owners_secret() -> None:
         assert password == secrets[node.org], node.name
 
 
+def test_web_terminal_presets_every_lab_node_with_its_login() -> None:
+    compose = yaml.safe_load((DIST / "lab/compose.yml").read_text())
+    config = json.loads((DIST / "lab/sshwifty.json").read_text())
+    assert config["OnlyAllowPresetRemotes"] is True
+    presets = {p["Host"]: p for p in config["Presets"]}
+    nodes = model().lab.routers() + model().lab.servers()
+    assert set(presets) == {f"{node.mgmt_ip}:22" for node in nodes}
+    for node in nodes:
+        meta = presets[f"{node.mgmt_ip}:22"]["Meta"]
+        service = compose["services"][node.name]
+        assert meta["Password"] == service["environment"]["LOGIN_PASSWORD"], node.name
+        assert meta["User"] == "netops", node.name
+    terminal = compose["services"]["terminal"]
+    assert "./sshwifty.json:/etc/sshwifty.json:ro" in terminal["volumes"]
+    assert terminal["environment"]["SSHWIFTY_CONFIG"] == "/etc/sshwifty.json"
+
+
 def test_published_ports_bind_loopback_only() -> None:
     overlays = [*(ROOT / "deploy/compose").glob("docker-compose.*.yml"), DIST / "lab/compose.yml"]
     for overlay in overlays:

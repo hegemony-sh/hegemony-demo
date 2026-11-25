@@ -27,6 +27,12 @@ Open <http://localhost:8080>, <http://localhost:8025> (Mailpit, where every
 mail the demo sends arrives) and <http://localhost:3000> (Gitea, the lab's Git
 server). Get the password with `task password` in the demo directory.
 
+To look at a router or server yourself, open <http://localhost:8182> (Sshwifty,
+a web terminal), choose **Known remotes** and pick a device: the login is
+filled in. A router opens in its FRR command line (`show ip route`,
+`show running-config`); a server in a shell. The first time, accept the
+device's host key.
+
 The network the stories change is a small lab next to the platform, drawn at
 <http://localhost:3000/netops/lab> once the demo runs (the same page as
 [docs/_generated/topology.md](_generated/topology.md)): the operator's routers in

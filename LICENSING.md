@@ -56,6 +56,7 @@ tag and your container runtime pulls it. Their licenses bind whoever runs them.
 | Alpine Linux, the simulated servers | `public.ecr.aws/docker/library/alpine` | Alpine's packages, each under its own licence |
 | OpenSSH, Python and sudo, inside the simulated routers and servers | Alpine packages | BSD-style (OpenSSH), PSF-2.0, ISC-style (sudo) |
 | Gitea, the lab's Git server | `docker.gitea.com/gitea` | MIT |
+| Sshwifty, the lab's web terminal | `niruix/sshwifty` | AGPL-3.0 |
 
 If you redistribute a demo deployment, as an image bundle or an appliance, you
 become a distributor of these services and take on their terms directly.

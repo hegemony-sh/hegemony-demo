@@ -615,6 +615,7 @@ def render_all(model: Model, stories_root: Any) -> dict[str, str]:
     files["dist/logins.txt"] = login_table(model)
     files["dist/demo.env"] = demo_env(model)
     files["dist/lab/compose.yml"] = head + dump_yaml(labmod.compose(model))
+    files["dist/lab/sshwifty.json"] = dump_json(labmod.terminal_config(model))
     files["dist/lab/checks.txt"] = labmod.checks(model, GENERATED_NOTE.format(spec=model.spec_id))
     for node in model.lab.routers():
         files[f"dist/lab/frr/{node.name}.conf"] = labmod.frr_config(model.lab, node)

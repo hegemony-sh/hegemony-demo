@@ -19,7 +19,7 @@ die() { ui_die "$*"; }
 
 "$lab_dir/fetch-inventory.sh"
 
-ui_step 🧪 "Starting the lab (routers, servers, Gitea, Mailpit) ..."
+ui_step 🧪 "Starting the lab (routers, servers, Gitea, Mailpit, web terminal) ..."
 attempt=1
 until "$lab" up -d --build --quiet-pull --wait --wait-timeout "${HEGEMONY_LAB_WAIT_SECONDS:-300}"; do
   if (( attempt >= 3 )); then

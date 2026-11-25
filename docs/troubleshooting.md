@@ -97,6 +97,10 @@ them restarting. `task up` is safe to run again.
   story 1 and story 2. That is on purpose.
 - **No mail.** Everything goes to Mailpit, <http://localhost:8025>, never to a
   real address. Check `task lab:logs -- mailpit`.
+- **The web terminal cannot connect.** <http://localhost:8182> reaches only
+  the lab's routers and servers, listed under **Known remotes**; it refuses
+  any other host. After `task lab:reset` a device has a new host key, so
+  accept the new one. Check `task lab:logs -- terminal`.
 - **Standards check fails to start its container.** It runs `alpine:3.22` in
   the platform's sandbox, which pulls it from Docker Hub the first time; that
   needs Internet access from Docker.
