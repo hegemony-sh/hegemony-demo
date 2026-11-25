@@ -103,6 +103,12 @@ else
   result FAIL "mail sink" "see: deploy/lab/lab.sh logs mailpit"
 fi
 
+if answers "http://localhost:${CONSOLE_UI_PORT:-8182}/lab.json"; then
+  result PASS "lab console" "http://localhost:${CONSOLE_UI_PORT:-8182}"
+else
+  result FAIL "lab console" "see: deploy/lab/lab.sh logs console"
+fi
+
 open="$(
   for project in hegemony-demo hegemony-lab; do
     docker ps --filter "label=com.docker.compose.project=$project" --format '{{.Ports}}' 2>/dev/null

@@ -27,6 +27,12 @@ Open <http://localhost:8080>, <http://localhost:8025> (Mailpit, where every
 mail the demo sends arrives) and <http://localhost:3000> (Gitea, the lab's Git
 server). Get the password with `task password` in the demo directory.
 
+To look at a router or server yourself, open <http://localhost:8182>, the lab
+console. It draws the lab; click a device and a terminal on it opens in a
+tab, already logged in. A router opens in its FRR command line
+(`show ip route`, `show running-config`), a server in a shell. **Open all**
+opens every device at once.
+
 The network the stories change is a small lab next to the platform, drawn at
 <http://localhost:3000/netops/lab> once the demo runs (the same page as
 [docs/_generated/topology.md](_generated/topology.md)): the operator's routers in

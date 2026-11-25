@@ -62,14 +62,14 @@ tasks:
 
   # ---------------------------------------------------------------- the lab
   lab:up:
-    desc: Start only the lab (routers, servers, Gitea, Mailpit) and check its network
+    desc: Start only the lab (routers, servers, Gitea, Mailpit, lab console) and check its network
     cmds:
       - "{{.TASKFILE_DIR}}/deploy/lab/up.sh"
 
   lab:reset:
     desc: Put the routers and servers back to their generated state (keeps Gitea and the platform)
     cmds:
-      - '"{{.LAB}}" up -d --force-recreate --wait $("{{.LAB}}" config --services | grep -vxE "gitea|gitea-seed|mailpit")'
+      - '"{{.LAB}}" up -d --force-recreate --wait $("{{.LAB}}" config --services | grep -vxE "gitea|gitea-seed|mailpit|console")'
       - "{{.TASKFILE_DIR}}/deploy/lab/check.sh"
 
   lab:check:

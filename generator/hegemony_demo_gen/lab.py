@@ -7,8 +7,13 @@
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import ipaddress
 from typing import Any
+
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
 from .model import Lab, LabNode, Model
 
@@ -28,6 +33,8 @@ GIT_PORT = 3000
 MAILPIT_IMAGE = "axllent/mailpit:v1.31.6"
 # Gitea's own registry, so the lab does not add to Docker Hub's anonymous limit.
 GITEA_IMAGE = "docker.gitea.com/gitea:1.24.7"
+# The lab console: a page with the lab diagram and a terminal per device.
+CONSOLE_PORT = 8182
 
 LAB_PROJECT = "hegemony-lab"
 
@@ -156,6 +163,124 @@ def _operator_config(lab: Lab, node: LabNode) -> list[str]:
     return lines
 
 
+# --------------------------------------------------------------------------- SSH host keys
+
+# Where a node's host key is mounted; its entrypoint installs it for sshd.
+HOST_KEY_MOUNT = "/config/ssh_host_ed25519_key"
+
+
+def _ssh_string(data: bytes) -> bytes:
+    return len(data).to_bytes(4, "big") + data
+
+
+def host_key(node: LabNode) -> tuple[str, str, str]:
+    """A node's fixed SSH host key: its OpenSSH private key file, its public
+    key (`ssh-ed25519 <base64>`) and its fingerprint.
+
+    Derived from the node's name, so every generation writes the same key and
+    the lab console can pin it. A published demo key, like the lab's logins:
+    it proves nothing about a device outside this lab.
+    """
+    seed = hashlib.sha256(b"hegemony-demo lab ssh host key\0" + node.name.encode()).digest()
+    public = (
+        Ed25519PrivateKey.from_private_bytes(seed)
+        .public_key()
+        .public_bytes(Encoding.Raw, PublicFormat.Raw)
+    )
+    key_type = b"ssh-ed25519"
+    public_blob = _ssh_string(key_type) + _ssh_string(public)
+    # The OpenSSH key format (PROTOCOL.key), unencrypted. Its check value is
+    # random in ssh-keygen; here it comes from the seed, to stay reproducible.
+    check = hashlib.sha256(b"check\0" + seed).digest()[:4]
+    private = (
+        check
+        + check
+        + _ssh_string(key_type)
+        + _ssh_string(public)
+        + _ssh_string(seed + public)
+        + _ssh_string(f"root@{node.name}".encode())
+    )
+    private += bytes(range(1, 1 + (-len(private) % 8)))
+    blob = (
+        b"openssh-key-v1\0"
+        + _ssh_string(b"none")
+        + _ssh_string(b"none")
+        + _ssh_string(b"")
+        + (1).to_bytes(4, "big")
+        + _ssh_string(public_blob)
+        + _ssh_string(private)
+    )
+    body = base64.b64encode(blob).decode()
+    lines = [body[i : i + 70] for i in range(0, len(body), 70)]
+    pem = "\n".join(
+        ["-----BEGIN OPENSSH PRIVATE KEY-----", *lines, "-----END OPENSSH PRIVATE KEY-----"]
+    )
+    digest = base64.b64encode(hashlib.sha256(public_blob).digest()).decode().rstrip("=")
+    public_line = "ssh-ed25519 " + base64.b64encode(public_blob).decode()
+    return pem + "\n", public_line, f"SHA256:{digest}"
+
+
+# --------------------------------------------------------------------------- lab console
+
+
+def console_devices(model: Model) -> str:
+    """The console's logins: `name address user password`, one device a line.
+
+    Only the console's container reads it: the page never sees a password.
+    """
+    lines = []
+    for node in model.lab.routers() + model.lab.servers():
+        user, password = login_for(node)
+        lines.append(f"{node.name}\t{node.mgmt_ip}\t{user}\t{password}")
+    return "\n".join(lines) + "\n"
+
+
+def console_known_hosts(model: Model) -> str:
+    """The devices' fixed host keys, so the console checks every connection."""
+    lines = []
+    for node in model.lab.routers() + model.lab.servers():
+        lines.append(f"{node.mgmt_ip} {host_key(node)[1]}")
+    return "\n".join(lines) + "\n"
+
+
+def console_map(model: Model) -> dict[str, Any]:
+    """What the console page draws: devices in layers below the provider.
+
+    A node's layer is its hop count from the provider over the lab's links;
+    servers sit on the services LAN behind the services router.
+    """
+    lab = model.lab
+    names = {o.slug: o.name for o in model.orgs}
+    links = [{"a": link.a, "b": link.b, "protocol": PROTOCOLS[link.protocol]} for link in lab.links]
+    links += [{"a": lab.services_router, "b": s.name, "protocol": "LAN"} for s in lab.servers()]
+    layer = {lab.upstream.name: 0}
+    frontier = [lab.upstream.name]
+    while frontier:
+        following = []
+        for name in frontier:
+            for link in links:
+                for here, there in ((link["a"], link["b"]), (link["b"], link["a"])):
+                    if here == name and there not in layer:
+                        layer[there] = layer[name] + 1
+                        following.append(there)
+        frontier = following
+    nodes = []
+    for node in lab.routers() + lab.servers():
+        org = node.org or "upstream"
+        nodes.append(
+            {
+                "name": node.name,
+                "kind": node.kind,
+                "org": org,
+                "owner": names.get(org, "Upstream provider"),
+                "management": node.mgmt_ip,
+                "addresses": [node.loopback] if node.loopback else list(node.lan),
+                "layer": layer[node.name],
+            }
+        )
+    return {"nodes": nodes, "links": links}
+
+
 # --------------------------------------------------------------------------- Compose
 
 
@@ -194,7 +319,10 @@ def _router_service(lab: Lab, node: LabNode) -> dict[str, Any]:
         "sysctls": {"net.ipv4.ip_forward": 1, "net.ipv4.conf.all.rp_filter": 0},
         # The image's login is `netops`; only the password differs per owner.
         "environment": {"LOGIN_PASSWORD": password},
-        "volumes": [f"./frr/{node.name}.conf:/config/frr.conf:ro"],
+        "volumes": [
+            f"./frr/{node.name}.conf:/config/frr.conf:ro",
+            f"./ssh/{node.name}_ed25519:{HOST_KEY_MOUNT}:ro",
+        ],
         "networks": _networks(lab, node),
         "healthcheck": {
             "test": ["CMD-SHELL", "vtysh -c 'show version' >/dev/null && pgrep sshd >/dev/null"],
@@ -230,6 +358,7 @@ def _server_service(lab: Lab, node: LabNode) -> dict[str, Any]:
             "LAN_ROUTES": " ".join(routes),
             "LAN_GATEWAY": lab.services_router_ip,
         },
+        "volumes": [f"./ssh/{node.name}_ed25519:{HOST_KEY_MOUNT}:ro"],
         "networks": _networks(lab, node),
         "healthcheck": {
             "test": ["CMD-SHELL", "pgrep sshd >/dev/null"],
@@ -312,6 +441,27 @@ def compose(model: Model) -> dict[str, Any]:
         },
         "networks": {"mgmt": {"ipv4_address": mailpit_ip(lab), "aliases": ["mailpit"]}},
         "ports": ["${MAILPIT_BIND_ADDRESS:-127.0.0.1}:${MAILPIT_UI_PORT:-8025}:8025"],
+    }
+    # The lab console: the lab diagram, and a logged-in terminal per device.
+    services["console"] = {
+        "image": "hegemony-lab-console:local",
+        "pull_policy": "build",
+        "build": {"context": "../../deploy/lab/console"},
+        "restart": "unless-stopped",
+        "volumes": [
+            "./console/devices.tsv:/etc/console/devices.tsv:ro",
+            "./console/known_hosts:/etc/console/known_hosts:ro",
+            "./console/lab.json:/srv/console/lab.json:ro",
+        ],
+        "networks": ["mgmt"],
+        "ports": [f"127.0.0.1:${{CONSOLE_UI_PORT:-{CONSOLE_PORT}}}:{CONSOLE_PORT}"],
+        "healthcheck": {
+            "test": ["CMD", "/usr/local/bin/console-health"],
+            "interval": "10s",
+            "timeout": "5s",
+            "retries": 6,
+            "start_period": "5s",
+        },
     }
 
     networks: dict[str, Any] = {
@@ -479,6 +629,8 @@ def topology_page(model: Model, note: str) -> str:
         f"  `{GIT_ORG}/{GIT_BACKUP_REPO}` the routers' configuration backups, and",
         f"  `{GIT_ORG}/{GIT_LAB_REPO}` this page, with the diagrams drawn.",
         "- **Mailpit**, <http://localhost:8025>: every mail the demo sends.",
+        f"- **Lab console**, <http://localhost:{CONSOLE_PORT}>: this diagram; click a router",
+        "  or server to open a terminal on it, already logged in.",
         "",
     ]
     return "\n".join(parts)

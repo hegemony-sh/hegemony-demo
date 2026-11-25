@@ -14,6 +14,10 @@ extend-exclude = [
     "LICENSE",
     # The banned-word list: names spelled on purpose, which typos "corrects".
     "tests/test_theme_lint.py",
+    # The lab's generated SSH host keys, and the console's copy of their
+    # public halves: base64, not words.
+    "dist/lab/ssh/",
+    "dist/lab/console/known_hosts",
 ]
 
 [default.extend-words]

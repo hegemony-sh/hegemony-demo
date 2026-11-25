@@ -26,7 +26,7 @@ MIN_MEMORY_GIB=6
 WANT_MEMORY_GIB=8
 MIN_DISK_GIB=15
 WANT_DISK_GIB=25
-PORTS="8080 8081 8025 9000 3000"
+PORTS="8080 8081 8025 9000 3000 8182"
 
 # ---------------------------------------------------------------- output
 # Colours and symbols when stdout and stderr are terminals (emojis too with
@@ -242,7 +242,7 @@ check_ports() {
     done)
     [ -n "$ours" ] && continue
     err "port $port is in use by another program; the demo publishes 8080 (UI), 8081
-       (login), 8025 (mail), 9000 (object store) and 3000 (Git) on 127.0.0.1. Stop that program and re-run."
+       (login), 8025 (mail), 9000 (object store), 3000 (Git) and 8182 (lab console) on 127.0.0.1. Stop that program and re-run."
   done
   ok "ports $(echo "$PORTS" | sed 's/ /, /g') are free"
 }

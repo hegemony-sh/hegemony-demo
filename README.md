@@ -39,7 +39,7 @@ addresses and credentials are made up for the demo.
 | Memory | 8 GiB for Docker (6 GiB at least) |
 | Disk | 25 GiB free for Docker images and data (15 GiB at least) |
 | Tools | `git`, `curl`, `bash`. [`task`](https://taskfile.dev) is optional and makes the lifecycle commands shorter. |
-| Ports | 8080, 8081, 8025, 9000 and 3000 free on 127.0.0.1 |
+| Ports | 8080, 8081, 8025, 9000, 3000 and 8182 free on 127.0.0.1 |
 
 The installer checks all of this first and says what is missing.
 
@@ -66,6 +66,7 @@ When it is done:
 | --- | --- |
 | Hegemony | <http://localhost:8080> |
 | Mail sent by the demo | <http://localhost:8025> |
+| Lab console: the lab map, click a device for a logged-in terminal | <http://localhost:8182> |
 | Password | printed by the installer; later `task password` in the demo directory |
 | Keycloak admin console | <http://localhost:8081/admin/>, user `admin`; password printed by the installer, later `task admin-password` |
 

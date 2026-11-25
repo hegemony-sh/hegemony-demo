@@ -90,3 +90,5 @@ flowchart LR
   `netops/config-backups` the routers' configuration backups, and
   `netops/lab` this page, with the diagrams drawn.
 - **Mailpit**, <http://localhost:8025>: every mail the demo sends.
+- **Lab console**, <http://localhost:8182>: this diagram; click a router
+  or server to open a terminal on it, already logged in.

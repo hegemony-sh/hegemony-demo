@@ -19,6 +19,7 @@ services:
       LOGIN_PASSWORD: demo-router-login
     volumes:
     - ./frr/hermes-isp.conf:/config/frr.conf:ro
+    - ./ssh/hermes-isp_ed25519:/config/ssh_host_ed25519_key:ro
     networks:
       mgmt:
         ipv4_address: 172.28.103.28
@@ -52,6 +53,7 @@ services:
       LOGIN_PASSWORD: demo-router-login
     volumes:
     - ./frr/dlp1-edge-01.conf:/config/frr.conf:ro
+    - ./ssh/dlp1-edge-01_ed25519:/config/ssh_host_ed25519_key:ro
     networks:
       mgmt:
         ipv4_address: 172.28.103.21
@@ -87,6 +89,7 @@ services:
       LOGIN_PASSWORD: demo-router-login
     volumes:
     - ./frr/dlp1-edge-02.conf:/config/frr.conf:ro
+    - ./ssh/dlp1-edge-02_ed25519:/config/ssh_host_ed25519_key:ro
     networks:
       mgmt:
         ipv4_address: 172.28.103.22
@@ -122,6 +125,7 @@ services:
       LOGIN_PASSWORD: demo-router-login
     volumes:
     - ./frr/dlp1-core-01.conf:/config/frr.conf:ro
+    - ./ssh/dlp1-core-01_ed25519:/config/ssh_host_ed25519_key:ro
     networks:
       mgmt:
         ipv4_address: 172.28.103.23
@@ -157,6 +161,7 @@ services:
       LOGIN_PASSWORD: demo-device-login
     volumes:
     - ./frr/ath1-edge-01.conf:/config/frr.conf:ro
+    - ./ssh/ath1-edge-01_ed25519:/config/ssh_host_ed25519_key:ro
     networks:
       mgmt:
         ipv4_address: 172.28.103.24
@@ -188,6 +193,7 @@ services:
       LOGIN_PASSWORD: demo-device-login
     volumes:
     - ./frr/spa1-edge-01.conf:/config/frr.conf:ro
+    - ./ssh/spa1-edge-01_ed25519:/config/ssh_host_ed25519_key:ro
     networks:
       mgmt:
         ipv4_address: 172.28.103.25
@@ -216,6 +222,8 @@ services:
       LAN_ADDRESSES: 10.90.0.123 10.90.0.53
       LAN_ROUTES: 10.255.0.0/16 198.51.100.0/24
       LAN_GATEWAY: 10.90.0.254
+    volumes:
+    - ./ssh/dlp1-srv-01_ed25519:/config/ssh_host_ed25519_key:ro
     networks:
       mgmt:
         ipv4_address: 172.28.103.26
@@ -244,6 +252,8 @@ services:
       LAN_ADDRESSES: 10.90.0.14
       LAN_ROUTES: 10.255.0.0/16 198.51.100.0/24
       LAN_GATEWAY: 10.90.0.254
+    volumes:
+    - ./ssh/dlp1-srv-02_ed25519:/config/ssh_host_ed25519_key:ro
     networks:
       mgmt:
         ipv4_address: 172.28.103.27
@@ -330,6 +340,28 @@ services:
         - mailpit
     ports:
     - ${MAILPIT_BIND_ADDRESS:-127.0.0.1}:${MAILPIT_UI_PORT:-8025}:8025
+  console:
+    image: hegemony-lab-console:local
+    pull_policy: build
+    build:
+      context: ../../deploy/lab/console
+    restart: unless-stopped
+    volumes:
+    - ./console/devices.tsv:/etc/console/devices.tsv:ro
+    - ./console/known_hosts:/etc/console/known_hosts:ro
+    - ./console/lab.json:/srv/console/lab.json:ro
+    networks:
+    - mgmt
+    ports:
+    - 127.0.0.1:${CONSOLE_UI_PORT:-8182}:8182
+    healthcheck:
+      test:
+      - CMD
+      - /usr/local/bin/console-health
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
 networks:
   mgmt:
     name: hegemony-lab-mgmt

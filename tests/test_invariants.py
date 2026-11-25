@@ -361,6 +361,47 @@ def test_each_lab_login_matches_its_owners_secret() -> None:
         assert password == secrets[node.org], node.name
 
 
+def test_lab_console_logs_in_to_every_lab_node_with_its_login() -> None:
+    compose = yaml.safe_load((DIST / "lab/compose.yml").read_text())
+    rows = [
+        line.split("\t") for line in (DIST / "lab/console/devices.tsv").read_text().splitlines()
+    ]
+    nodes = model().lab.routers() + model().lab.servers()
+    assert [row[0] for row in rows] == [node.name for node in nodes]
+    for name, address, user, password in rows:
+        service = compose["services"][name]
+        assert address == service["networks"]["mgmt"]["ipv4_address"], name
+        assert password == service["environment"]["LOGIN_PASSWORD"], name
+        assert user == "netops", name
+    # The page's data draws every node and holds no password.
+    page = (DIST / "lab/console/lab.json").read_text()
+    assert {n["name"] for n in json.loads(page)["nodes"]} == {node.name for node in nodes}
+    assert not {row[3] for row in rows} & set(re.findall(r'"([^"]*)"', page))
+    console = compose["services"]["console"]
+    assert console["networks"] == ["mgmt"]
+    assert "./console/devices.tsv:/etc/console/devices.tsv:ro" in console["volumes"]
+
+
+def test_lab_console_pins_each_nodes_generated_host_key() -> None:
+    from cryptography.hazmat.primitives.serialization import (
+        Encoding,
+        PublicFormat,
+        load_ssh_private_key,
+    )
+
+    compose = yaml.safe_load((DIST / "lab/compose.yml").read_text())
+    known = dict(
+        line.split(" ", 1) for line in (DIST / "lab/console/known_hosts").read_text().splitlines()
+    )
+    for node in model().lab.routers() + model().lab.servers():
+        key_file = DIST / f"lab/ssh/{node.name}_ed25519"
+        key = load_ssh_private_key(key_file.read_bytes(), password=None)
+        public = key.public_key().public_bytes(Encoding.OpenSSH, PublicFormat.OpenSSH).decode()
+        assert known[node.mgmt_ip] == public, node.name
+        mount = f"./ssh/{node.name}_ed25519:/config/ssh_host_ed25519_key:ro"
+        assert mount in compose["services"][node.name]["volumes"], node.name
+
+
 def test_published_ports_bind_loopback_only() -> None:
     overlays = [*(ROOT / "deploy/compose").glob("docker-compose.*.yml"), DIST / "lab/compose.yml"]
     for overlay in overlays:

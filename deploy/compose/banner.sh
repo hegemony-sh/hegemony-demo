@@ -19,6 +19,8 @@ source "$compose_dir/ui.sh"
 
 # Gitea's published port: the lab's Compose project reads the same variable.
 git_url="http://localhost:${GITEA_UI_PORT:-3000}"
+mail_url="http://localhost:${MAILPIT_UI_PORT:-8025}"
+console_url="http://localhost:${CONSOLE_UI_PORT:-8182}"
 keycloak_url="http://localhost:8081/admin/"
 # The Keycloak console's user name: the demo's settings.
 keycloak_admin="$(sed -n 's/^KEYCLOAK_ADMIN=//p' "$compose_dir/.env.demo" | tail -n 1)"
@@ -36,9 +38,11 @@ if ((ui_fancy)); then
   printf '  %s%s%s\n\n' "$ui_magenta" "$rule" "$ui_r"
   printf '    %s%-8s %s\n' "$(ui_emoji 🌐)" "Web UI" "$(link http://localhost:8080)"
   printf '    %s%-8s %s   %s(every notification lands here)%s\n' "$(ui_emoji 📬)" "Mail" \
-    "$(link http://localhost:8025)" "$ui_d" "$ui_r"
-  printf '    %s%-8s %s   %s(the lab'"'"'s inventory and config backups)%s\n\n' "$(ui_emoji 📁)" "Git" \
+    "$(link "$mail_url")" "$ui_d" "$ui_r"
+  printf '    %s%-8s %s   %s(the lab'"'"'s inventory and config backups)%s\n' "$(ui_emoji 📁)" "Git" \
     "$(link "$git_url")" "$ui_d" "$ui_r"
+  printf '    %s%-8s %s   %s(the lab map: click a device for a terminal)%s\n\n' \
+    "$(ui_emoji 💻)" "Console" "$(link "$console_url")" "$ui_d" "$ui_r"
   # The logins file: its title bold, the user names in colour.
   sed -e "1s/.*/  $(ui_emoji 👥)$ui_b&$ui_r/" \
     -e "1!s/^  \([a-z-]*\)\( *\)\([A-Z][a-z]*\)/    $ui_yellow\1$ui_r\2$ui_b\3$ui_r/" \
@@ -70,8 +74,9 @@ cat <<TEXT
   Hegemony demo is up.
 
     Web UI    http://localhost:8080
-    Mail      http://localhost:8025   (every notification lands here)
+    Mail      $mail_url   (every notification lands here)
     Git       $git_url   (the lab's inventory and config backups)
+    Console   $console_url   (the lab map: click a device for a terminal)
 
 TEXT
 sed 's/^/  /' "$root/dist/logins.txt"
