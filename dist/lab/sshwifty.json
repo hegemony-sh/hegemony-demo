@@ -7,6 +7,7 @@
       "Meta": {
         "Authentication": "Password",
         "Encoding": "utf-8",
+        "Fingerprint": "SHA256:Jk3Op4lw6GKMzb0rEgLeRwb6YO72wnKHMVRev887dNk",
         "Password": "demo-router-login",
         "User": "netops"
       },
@@ -18,6 +19,7 @@
       "Meta": {
         "Authentication": "Password",
         "Encoding": "utf-8",
+        "Fingerprint": "SHA256:GbkkC+1qNOSrOJEZY6pFpiOursFd5DeXPm+CY6QdpWg",
         "Password": "demo-router-login",
         "User": "netops"
       },
@@ -29,6 +31,7 @@
       "Meta": {
         "Authentication": "Password",
         "Encoding": "utf-8",
+        "Fingerprint": "SHA256:fTB9uk5xUAQYO58cnqOGKz0jEj3yFFimm3mRvXzPBqI",
         "Password": "demo-router-login",
         "User": "netops"
       },
@@ -40,6 +43,7 @@
       "Meta": {
         "Authentication": "Password",
         "Encoding": "utf-8",
+        "Fingerprint": "SHA256:hbSjLZPCpoqiUCzVC4CHkht9HQyrQHDQ+phQm7V/E74",
         "Password": "demo-router-login",
         "User": "netops"
       },
@@ -51,6 +55,7 @@
       "Meta": {
         "Authentication": "Password",
         "Encoding": "utf-8",
+        "Fingerprint": "SHA256:3zJ2+Xspo/ZLQ9Uwib0VB0b3O7NyIvgN99VGfe2ERqE",
         "Password": "demo-device-login",
         "User": "netops"
       },
@@ -62,6 +67,7 @@
       "Meta": {
         "Authentication": "Password",
         "Encoding": "utf-8",
+        "Fingerprint": "SHA256:9qyuo8OfxsBHCL7KtTndVZ0zjL2/U5iWtLx06LbKJOk",
         "Password": "demo-device-login",
         "User": "netops"
       },
@@ -73,6 +79,7 @@
       "Meta": {
         "Authentication": "Password",
         "Encoding": "utf-8",
+        "Fingerprint": "SHA256:GHRr0WTIWLqcoIaLYdSPBoGYVodgKtzkE2IglyBvX+8",
         "Password": "demo-router-login",
         "User": "netops"
       },
@@ -84,6 +91,7 @@
       "Meta": {
         "Authentication": "Password",
         "Encoding": "utf-8",
+        "Fingerprint": "SHA256:fQfCNzT5oOTkrCsY2kAaAT9QEkWDbRBa3YL54ajPmbE",
         "Password": "demo-router-login",
         "User": "netops"
       },

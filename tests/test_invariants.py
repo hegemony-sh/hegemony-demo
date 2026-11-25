@@ -13,6 +13,8 @@ fail here first. The end-to-end workflow imports the bundles into a real API.
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import ipaddress
 import json
 import re
@@ -376,6 +378,28 @@ def test_web_terminal_presets_every_lab_node_with_its_login() -> None:
     terminal = compose["services"]["terminal"]
     assert "./sshwifty.json:/etc/sshwifty.json:ro" in terminal["volumes"]
     assert terminal["environment"]["SSHWIFTY_CONFIG"] == "/etc/sshwifty.json"
+
+
+def test_web_terminal_pins_each_nodes_generated_host_key() -> None:
+    from cryptography.hazmat.primitives.serialization import (
+        Encoding,
+        PublicFormat,
+        load_ssh_private_key,
+    )
+
+    compose = yaml.safe_load((DIST / "lab/compose.yml").read_text())
+    config = json.loads((DIST / "lab/sshwifty.json").read_text())
+    pinned = {p["Host"]: p["Meta"]["Fingerprint"] for p in config["Presets"]}
+    for node in model().lab.routers() + model().lab.servers():
+        key_file = DIST / f"lab/ssh/{node.name}_ed25519"
+        key = load_ssh_private_key(key_file.read_bytes(), password=None)
+        blob = base64.b64decode(
+            key.public_key().public_bytes(Encoding.OpenSSH, PublicFormat.OpenSSH).split()[1]
+        )
+        digest = base64.b64encode(hashlib.sha256(blob).digest()).decode().rstrip("=")
+        assert pinned[f"{node.mgmt_ip}:22"] == f"SHA256:{digest}", node.name
+        mount = f"./ssh/{node.name}_ed25519:/config/ssh_host_ed25519_key:ro"
+        assert mount in compose["services"][node.name]["volumes"], node.name
 
 
 def test_published_ports_bind_loopback_only() -> None:

@@ -617,6 +617,8 @@ def render_all(model: Model, stories_root: Any) -> dict[str, str]:
     files["dist/lab/compose.yml"] = head + dump_yaml(labmod.compose(model))
     files["dist/lab/sshwifty.json"] = dump_json(labmod.terminal_config(model))
     files["dist/lab/checks.txt"] = labmod.checks(model, GENERATED_NOTE.format(spec=model.spec_id))
+    for node in model.lab.routers() + model.lab.servers():
+        files[f"dist/lab/ssh/{node.name}_ed25519"] = labmod.host_key(node)[0]
     for node in model.lab.routers():
         files[f"dist/lab/frr/{node.name}.conf"] = labmod.frr_config(model.lab, node)
     files["docs/_generated/topology.md"] = labmod.topology_page(

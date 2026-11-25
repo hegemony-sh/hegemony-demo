@@ -9,3 +9,14 @@
 
 [extend]
 useDefault = true
+
+# The lab's SSH host keys: generated from each device's name by demo-gen and
+# published on purpose, like the lab's logins, so the web terminal can pin
+# them. They identify the lab's containers only. The generator module that
+# writes them holds the key file's header line, not a key.
+[allowlist]
+description = "Published demo host keys of the lab, and their generator"
+paths = [
+    '^dist/lab/ssh/[a-z0-9-]+_ed25519$',
+    '^generator/hegemony_demo_gen/lab\.py$',
+]

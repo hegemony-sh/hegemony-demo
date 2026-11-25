@@ -14,7 +14,13 @@ extend-exclude = [
     "LICENSE",
     # The banned-word list: names spelled on purpose, which typos "corrects".
     "tests/test_theme_lint.py",
+    # The lab's generated SSH host keys: base64, not words.
+    "dist/lab/ssh/",
 ]
+
+[default]
+# Host key fingerprints (SHA256:<base64>) in the web terminal's presets.
+extend-ignore-re = ["SHA256:[A-Za-z0-9+/]{43}"]
 
 [default.extend-words]
 # Olympia's site code oly1, which typos sees as "oly" once it strips the digit.

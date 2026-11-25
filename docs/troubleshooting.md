@@ -99,8 +99,10 @@ them restarting. `task up` is safe to run again.
   real address. Check `task lab:logs -- mailpit`.
 - **The web terminal cannot connect.** <http://localhost:8182> reaches only
   the lab's routers and servers, listed under **Known remotes**; it refuses
-  any other host. After `task lab:reset` a device has a new host key, so
-  accept the new one. Check `task lab:logs -- terminal`.
+  any other host. It knows each device's host key, which the generator fixes,
+  so it never asks to accept one; if it reports a changed key, the device
+  runs an older image: `task lab:up` rebuilds it. Check
+  `task lab:logs -- terminal`.
 - **Standards check fails to start its container.** It runs `alpine:3.22` in
   the platform's sandbox, which pulls it from Docker Hub the first time; that
   needs Internet access from Docker.

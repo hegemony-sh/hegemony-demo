@@ -7,8 +7,13 @@
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import ipaddress
 from typing import Any
+
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
 from .model import Lab, LabNode, Model
 
@@ -163,6 +168,61 @@ def _operator_config(lab: Lab, node: LabNode) -> list[str]:
     return lines
 
 
+# --------------------------------------------------------------------------- SSH host keys
+
+# Where a node's host key is mounted; its entrypoint installs it for sshd.
+HOST_KEY_MOUNT = "/config/ssh_host_ed25519_key"
+
+
+def _ssh_string(data: bytes) -> bytes:
+    return len(data).to_bytes(4, "big") + data
+
+
+def host_key(node: LabNode) -> tuple[str, str]:
+    """A node's fixed SSH host key: its OpenSSH private key file and fingerprint.
+
+    Derived from the node's name, so every generation writes the same key and
+    the web terminal can pin it. A published demo key, like the lab's logins:
+    it proves nothing about a device outside this lab.
+    """
+    seed = hashlib.sha256(b"hegemony-demo lab ssh host key\0" + node.name.encode()).digest()
+    public = (
+        Ed25519PrivateKey.from_private_bytes(seed)
+        .public_key()
+        .public_bytes(Encoding.Raw, PublicFormat.Raw)
+    )
+    key_type = b"ssh-ed25519"
+    public_blob = _ssh_string(key_type) + _ssh_string(public)
+    # The OpenSSH key format (PROTOCOL.key), unencrypted. Its check value is
+    # random in ssh-keygen; here it comes from the seed, to stay reproducible.
+    check = hashlib.sha256(b"check\0" + seed).digest()[:4]
+    private = (
+        check
+        + check
+        + _ssh_string(key_type)
+        + _ssh_string(public)
+        + _ssh_string(seed + public)
+        + _ssh_string(f"root@{node.name}".encode())
+    )
+    private += bytes(range(1, 1 + (-len(private) % 8)))
+    blob = (
+        b"openssh-key-v1\0"
+        + _ssh_string(b"none")
+        + _ssh_string(b"none")
+        + _ssh_string(b"")
+        + (1).to_bytes(4, "big")
+        + _ssh_string(public_blob)
+        + _ssh_string(private)
+    )
+    body = base64.b64encode(blob).decode()
+    lines = [body[i : i + 70] for i in range(0, len(body), 70)]
+    pem = "\n".join(
+        ["-----BEGIN OPENSSH PRIVATE KEY-----", *lines, "-----END OPENSSH PRIVATE KEY-----"]
+    )
+    digest = base64.b64encode(hashlib.sha256(public_blob).digest()).decode().rstrip("=")
+    return pem + "\n", f"SHA256:{digest}"
+
+
 # --------------------------------------------------------------------------- web terminal
 
 
@@ -190,6 +250,8 @@ def terminal_config(model: Model) -> dict[str, Any]:
                     "Password": password,
                     "Authentication": "Password",
                     "Encoding": "utf-8",
+                    # The node's fixed host key: no "accept this key?" prompt.
+                    "Fingerprint": host_key(node)[1],
                 },
             }
         )
@@ -256,7 +318,10 @@ def _router_service(lab: Lab, node: LabNode) -> dict[str, Any]:
         "sysctls": {"net.ipv4.ip_forward": 1, "net.ipv4.conf.all.rp_filter": 0},
         # The image's login is `netops`; only the password differs per owner.
         "environment": {"LOGIN_PASSWORD": password},
-        "volumes": [f"./frr/{node.name}.conf:/config/frr.conf:ro"],
+        "volumes": [
+            f"./frr/{node.name}.conf:/config/frr.conf:ro",
+            f"./ssh/{node.name}_ed25519:{HOST_KEY_MOUNT}:ro",
+        ],
         "networks": _networks(lab, node),
         "healthcheck": {
             "test": ["CMD-SHELL", "vtysh -c 'show version' >/dev/null && pgrep sshd >/dev/null"],
@@ -292,6 +357,7 @@ def _server_service(lab: Lab, node: LabNode) -> dict[str, Any]:
             "LAN_ROUTES": " ".join(routes),
             "LAN_GATEWAY": lab.services_router_ip,
         },
+        "volumes": [f"./ssh/{node.name}_ed25519:{HOST_KEY_MOUNT}:ro"],
         "networks": _networks(lab, node),
         "healthcheck": {
             "test": ["CMD-SHELL", "pgrep sshd >/dev/null"],
