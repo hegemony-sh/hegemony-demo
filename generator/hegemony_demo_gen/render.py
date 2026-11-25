@@ -615,7 +615,9 @@ def render_all(model: Model, stories_root: Any) -> dict[str, str]:
     files["dist/logins.txt"] = login_table(model)
     files["dist/demo.env"] = demo_env(model)
     files["dist/lab/compose.yml"] = head + dump_yaml(labmod.compose(model))
-    files["dist/lab/sshwifty.json"] = dump_json(labmod.terminal_config(model))
+    files["dist/lab/console/devices.tsv"] = labmod.console_devices(model)
+    files["dist/lab/console/known_hosts"] = labmod.console_known_hosts(model)
+    files["dist/lab/console/lab.json"] = dump_json(labmod.console_map(model))
     files["dist/lab/checks.txt"] = labmod.checks(model, GENERATED_NOTE.format(spec=model.spec_id))
     for node in model.lab.routers() + model.lab.servers():
         files[f"dist/lab/ssh/{node.name}_ed25519"] = labmod.host_key(node)[0]

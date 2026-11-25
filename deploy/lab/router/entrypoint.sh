@@ -18,7 +18,7 @@ if [ -f /config/frr.conf ]; then
   chown frr:frr /etc/frr/frr.conf
 fi
 
-# The generated, fixed host key, which the web terminal pins; without one, a
+# The generated, fixed host key, which the lab console pins; without one, a
 # host key per container, made at its first start.
 if [ -f /config/ssh_host_ed25519_key ]; then
   install -m 0600 /config/ssh_host_ed25519_key /etc/ssh/ssh_host_ed25519_key

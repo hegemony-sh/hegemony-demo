@@ -39,8 +39,8 @@ if ((ui_fancy)); then
     "$(link http://localhost:8025)" "$ui_d" "$ui_r"
   printf '    %s%-8s %s   %s(the lab'"'"'s inventory and config backups)%s\n' "$(ui_emoji 📁)" "Git" \
     "$(link "$git_url")" "$ui_d" "$ui_r"
-  printf '    %s%-8s %s   %s(SSH to any lab router or server, logins filled in)%s\n\n' \
-    "$(ui_emoji 💻)" "Terminal" "$(link http://localhost:8182)" "$ui_d" "$ui_r"
+  printf '    %s%-8s %s   %s(the lab map: click a device for a terminal)%s\n\n' \
+    "$(ui_emoji 💻)" "Console" "$(link http://localhost:8182)" "$ui_d" "$ui_r"
   # The logins file: its title bold, the user names in colour.
   sed -e "1s/.*/  $(ui_emoji 👥)$ui_b&$ui_r/" \
     -e "1!s/^  \([a-z-]*\)\( *\)\([A-Z][a-z]*\)/    $ui_yellow\1$ui_r\2$ui_b\3$ui_r/" \
@@ -74,7 +74,7 @@ cat <<TEXT
     Web UI    http://localhost:8080
     Mail      http://localhost:8025   (every notification lands here)
     Git       $git_url   (the lab's inventory and config backups)
-    Terminal  http://localhost:8182   (SSH to any lab router or server, logins filled in)
+    Console   http://localhost:8182   (the lab map: click a device for a terminal)
 
 TEXT
 sed 's/^/  /' "$root/dist/logins.txt"

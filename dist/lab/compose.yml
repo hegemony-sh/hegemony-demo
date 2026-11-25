@@ -340,25 +340,24 @@ services:
         - mailpit
     ports:
     - ${MAILPIT_BIND_ADDRESS:-127.0.0.1}:${MAILPIT_UI_PORT:-8025}:8025
-  terminal:
-    image: niruix/sshwifty:0.4.12-beta-release@sha256:1a3ef74bd2e2dea175dee02763f918933f5f28954c3f7788883daede382c3f6b
+  console:
+    image: hegemony-lab-console:local
+    pull_policy: build
+    build:
+      context: ../../deploy/lab/console
     restart: unless-stopped
-    environment:
-      SSHWIFTY_CONFIG: /etc/sshwifty.json
     volumes:
-    - ./sshwifty.json:/etc/sshwifty.json:ro
+    - ./console/devices.tsv:/etc/console/devices.tsv:ro
+    - ./console/known_hosts:/etc/console/known_hosts:ro
+    - ./console/lab.json:/srv/console/lab.json:ro
     networks:
     - mgmt
     ports:
-    - 127.0.0.1:${TERMINAL_UI_PORT:-8182}:8182
+    - 127.0.0.1:${CONSOLE_UI_PORT:-8182}:8182
     healthcheck:
       test:
       - CMD
-      - wget
-      - -q
-      - -O
-      - /dev/null
-      - http://127.0.0.1:8182/
+      - /usr/local/bin/console-health
       interval: 10s
       timeout: 5s
       retries: 6

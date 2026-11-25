@@ -66,7 +66,7 @@ When it is done:
 | --- | --- |
 | Hegemony | <http://localhost:8080> |
 | Mail sent by the demo | <http://localhost:8025> |
-| Web terminal to the lab's routers and servers | <http://localhost:8182>, open **Known remotes** |
+| Lab console: the lab map, click a device for a logged-in terminal | <http://localhost:8182> |
 | Password | printed by the installer; later `task password` in the demo directory |
 | Keycloak admin console | <http://localhost:8081/admin/>, user `admin`; password printed by the installer, later `task admin-password` |
 

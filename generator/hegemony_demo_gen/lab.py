@@ -33,13 +33,8 @@ GIT_PORT = 3000
 MAILPIT_IMAGE = "axllent/mailpit:v1.31.6"
 # Gitea's own registry, so the lab does not add to Docker Hub's anonymous limit.
 GITEA_IMAGE = "docker.gitea.com/gitea:1.24.7"
-# The web terminal. Sshwifty publishes only to Docker Hub; pinned by digest
-# (the multi-architecture index).
-SSHWIFTY_IMAGE = (
-    "niruix/sshwifty:0.4.12-beta-release"
-    "@sha256:1a3ef74bd2e2dea175dee02763f918933f5f28954c3f7788883daede382c3f6b"
-)
-SSHWIFTY_PORT = 8182
+# The lab console: a page with the lab diagram and a terminal per device.
+CONSOLE_PORT = 8182
 
 LAB_PROJECT = "hegemony-lab"
 
@@ -178,11 +173,12 @@ def _ssh_string(data: bytes) -> bytes:
     return len(data).to_bytes(4, "big") + data
 
 
-def host_key(node: LabNode) -> tuple[str, str]:
-    """A node's fixed SSH host key: its OpenSSH private key file and fingerprint.
+def host_key(node: LabNode) -> tuple[str, str, str]:
+    """A node's fixed SSH host key: its OpenSSH private key file, its public
+    key (`ssh-ed25519 <base64>`) and its fingerprint.
 
     Derived from the node's name, so every generation writes the same key and
-    the web terminal can pin it. A published demo key, like the lab's logins:
+    the lab console can pin it. A published demo key, like the lab's logins:
     it proves nothing about a device outside this lab.
     """
     seed = hashlib.sha256(b"hegemony-demo lab ssh host key\0" + node.name.encode()).digest()
@@ -220,64 +216,69 @@ def host_key(node: LabNode) -> tuple[str, str]:
         ["-----BEGIN OPENSSH PRIVATE KEY-----", *lines, "-----END OPENSSH PRIVATE KEY-----"]
     )
     digest = base64.b64encode(hashlib.sha256(public_blob).digest()).decode().rstrip("=")
-    return pem + "\n", f"SHA256:{digest}"
+    public_line = "ssh-ed25519 " + base64.b64encode(public_blob).decode()
+    return pem + "\n", public_line, f"SHA256:{digest}"
 
 
-# --------------------------------------------------------------------------- web terminal
+# --------------------------------------------------------------------------- lab console
 
 
-def terminal_config(model: Model) -> dict[str, Any]:
-    """Sshwifty's configuration: one preset per lab router and server.
+def console_devices(model: Model) -> str:
+    """The console's logins: `name address user password`, one device a line.
 
-    The presets carry the lab's published demo logins, so a click opens a
-    session. Sshwifty sends presets to the browser as they are, which is fine
-    only because these logins are made up and the terminal listens on the
-    host's loopback alone. It refuses any host that is not a preset.
+    Only the console's container reads it: the page never sees a password.
+    """
+    lines = []
+    for node in model.lab.routers() + model.lab.servers():
+        user, password = login_for(node)
+        lines.append(f"{node.name}\t{node.mgmt_ip}\t{user}\t{password}")
+    return "\n".join(lines) + "\n"
+
+
+def console_known_hosts(model: Model) -> str:
+    """The devices' fixed host keys, so the console checks every connection."""
+    lines = []
+    for node in model.lab.routers() + model.lab.servers():
+        lines.append(f"{node.mgmt_ip} {host_key(node)[1]}")
+    return "\n".join(lines) + "\n"
+
+
+def console_map(model: Model) -> dict[str, Any]:
+    """What the console page draws: devices in layers below the provider.
+
+    A node's layer is its hop count from the provider over the lab's links;
+    servers sit on the services LAN behind the services router.
     """
     lab = model.lab
     names = {o.slug: o.name for o in model.orgs}
-    presets = []
+    links = [{"a": link.a, "b": link.b, "protocol": PROTOCOLS[link.protocol]} for link in lab.links]
+    links += [{"a": lab.services_router, "b": s.name, "protocol": "LAN"} for s in lab.servers()]
+    layer = {lab.upstream.name: 0}
+    frontier = [lab.upstream.name]
+    while frontier:
+        following = []
+        for name in frontier:
+            for link in links:
+                for here, there in ((link["a"], link["b"]), (link["b"], link["a"])):
+                    if here == name and there not in layer:
+                        layer[there] = layer[name] + 1
+                        following.append(there)
+        frontier = following
+    nodes = []
     for node in lab.routers() + lab.servers():
-        user, password = login_for(node)
-        owner = names.get(node.org or "", "upstream provider")
-        presets.append(
+        org = node.org or "upstream"
+        nodes.append(
             {
-                "Title": f"{node.name} ({node.kind}, {owner})",
-                "Type": "SSH",
-                "Host": f"{node.mgmt_ip}:22",
-                "Meta": {
-                    "User": user,
-                    "Password": password,
-                    "Authentication": "Password",
-                    "Encoding": "utf-8",
-                    # The node's fixed host key: no "accept this key?" prompt.
-                    "Fingerprint": host_key(node)[1],
-                },
+                "name": node.name,
+                "kind": node.kind,
+                "org": org,
+                "owner": names.get(org, "Upstream provider"),
+                "management": node.mgmt_ip,
+                "addresses": [node.loopback] if node.loopback else list(node.lan),
+                "layer": layer[node.name],
             }
         )
-    return {
-        # No access password: like Mailpit, it is reachable from this machine only.
-        "SharedKey": "",
-        "DialTimeout": 10,
-        "Servers": [
-            {
-                # Inside the container; Compose publishes it on 127.0.0.1 only.
-                "ListenInterface": "0.0.0.0",  # noqa: S104
-                "ListenPort": SSHWIFTY_PORT,
-                "InitialTimeout": 10,
-                "ReadTimeout": 120,
-                "WriteTimeout": 120,
-                "HeartbeatTimeout": 10,
-                "ReadDelay": 10,
-                "WriteDelay": 10,
-                "ServerMessage": (
-                    "Hegemony demo lab. Open Known remotes and pick a router or a server."
-                ),
-            }
-        ],
-        "Presets": presets,
-        "OnlyAllowPresetRemotes": True,
-    }
+    return {"nodes": nodes, "links": links}
 
 
 # --------------------------------------------------------------------------- Compose
@@ -441,16 +442,21 @@ def compose(model: Model) -> dict[str, Any]:
         "networks": {"mgmt": {"ipv4_address": mailpit_ip(lab), "aliases": ["mailpit"]}},
         "ports": ["${MAILPIT_BIND_ADDRESS:-127.0.0.1}:${MAILPIT_UI_PORT:-8025}:8025"],
     }
-    # A web terminal with every router and server preset (see terminal_config).
-    services["terminal"] = {
-        "image": SSHWIFTY_IMAGE,
+    # The lab console: the lab diagram, and a logged-in terminal per device.
+    services["console"] = {
+        "image": "hegemony-lab-console:local",
+        "pull_policy": "build",
+        "build": {"context": "../../deploy/lab/console"},
         "restart": "unless-stopped",
-        "environment": {"SSHWIFTY_CONFIG": "/etc/sshwifty.json"},
-        "volumes": ["./sshwifty.json:/etc/sshwifty.json:ro"],
+        "volumes": [
+            "./console/devices.tsv:/etc/console/devices.tsv:ro",
+            "./console/known_hosts:/etc/console/known_hosts:ro",
+            "./console/lab.json:/srv/console/lab.json:ro",
+        ],
         "networks": ["mgmt"],
-        "ports": [f"127.0.0.1:${{TERMINAL_UI_PORT:-{SSHWIFTY_PORT}}}:{SSHWIFTY_PORT}"],
+        "ports": [f"127.0.0.1:${{CONSOLE_UI_PORT:-{CONSOLE_PORT}}}:{CONSOLE_PORT}"],
         "healthcheck": {
-            "test": ["CMD", "wget", "-q", "-O", "/dev/null", f"http://127.0.0.1:{SSHWIFTY_PORT}/"],
+            "test": ["CMD", "/usr/local/bin/console-health"],
             "interval": "10s",
             "timeout": "5s",
             "retries": 6,
@@ -623,8 +629,8 @@ def topology_page(model: Model, note: str) -> str:
         f"  `{GIT_ORG}/{GIT_BACKUP_REPO}` the routers' configuration backups, and",
         f"  `{GIT_ORG}/{GIT_LAB_REPO}` this page, with the diagrams drawn.",
         "- **Mailpit**, <http://localhost:8025>: every mail the demo sends.",
-        f"- **Web terminal** (Sshwifty), <http://localhost:{SSHWIFTY_PORT}>: an SSH session",
-        "  to any router or server in one click, logins filled in. Open **Known remotes**.",
+        f"- **Lab console**, <http://localhost:{CONSOLE_PORT}>: this diagram; click a router",
+        "  or server to open a terminal on it, already logged in.",
         "",
     ]
     return "\n".join(parts)

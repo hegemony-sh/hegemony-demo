@@ -1,0 +1,135 @@
+{
+  "links": [
+    {
+      "a": "hermes-isp",
+      "b": "dlp1-edge-01",
+      "protocol": "eBGP"
+    },
+    {
+      "a": "hermes-isp",
+      "b": "dlp1-edge-02",
+      "protocol": "eBGP"
+    },
+    {
+      "a": "dlp1-edge-01",
+      "b": "dlp1-core-01",
+      "protocol": "OSPF"
+    },
+    {
+      "a": "dlp1-edge-02",
+      "b": "dlp1-core-01",
+      "protocol": "OSPF"
+    },
+    {
+      "a": "dlp1-edge-01",
+      "b": "ath1-edge-01",
+      "protocol": "OSPF"
+    },
+    {
+      "a": "dlp1-edge-02",
+      "b": "spa1-edge-01",
+      "protocol": "OSPF"
+    },
+    {
+      "a": "dlp1-core-01",
+      "b": "dlp1-srv-01",
+      "protocol": "LAN"
+    },
+    {
+      "a": "dlp1-core-01",
+      "b": "dlp1-srv-02",
+      "protocol": "LAN"
+    }
+  ],
+  "nodes": [
+    {
+      "addresses": [
+        "198.51.100.1"
+      ],
+      "kind": "router",
+      "layer": 0,
+      "management": "172.28.103.28",
+      "name": "hermes-isp",
+      "org": "upstream",
+      "owner": "Upstream provider"
+    },
+    {
+      "addresses": [
+        "10.255.0.1"
+      ],
+      "kind": "router",
+      "layer": 1,
+      "management": "172.28.103.21",
+      "name": "dlp1-edge-01",
+      "org": "default",
+      "owner": "Amphictyon Networks"
+    },
+    {
+      "addresses": [
+        "10.255.0.2"
+      ],
+      "kind": "router",
+      "layer": 1,
+      "management": "172.28.103.22",
+      "name": "dlp1-edge-02",
+      "org": "default",
+      "owner": "Amphictyon Networks"
+    },
+    {
+      "addresses": [
+        "10.255.0.3"
+      ],
+      "kind": "router",
+      "layer": 2,
+      "management": "172.28.103.23",
+      "name": "dlp1-core-01",
+      "org": "default",
+      "owner": "Amphictyon Networks"
+    },
+    {
+      "addresses": [
+        "10.255.0.9"
+      ],
+      "kind": "router",
+      "layer": 2,
+      "management": "172.28.103.24",
+      "name": "ath1-edge-01",
+      "org": "athens",
+      "owner": "Athens"
+    },
+    {
+      "addresses": [
+        "10.255.0.13"
+      ],
+      "kind": "router",
+      "layer": 2,
+      "management": "172.28.103.25",
+      "name": "spa1-edge-01",
+      "org": "sparta",
+      "owner": "Sparta"
+    },
+    {
+      "addresses": [
+        "10.90.0.123",
+        "10.90.0.53"
+      ],
+      "kind": "server",
+      "layer": 3,
+      "management": "172.28.103.26",
+      "name": "dlp1-srv-01",
+      "org": "default",
+      "owner": "Amphictyon Networks"
+    },
+    {
+      "addresses": [
+        "10.90.0.14"
+      ],
+      "kind": "server",
+      "layer": 3,
+      "management": "172.28.103.27",
+      "name": "dlp1-srv-02",
+      "org": "default",
+      "owner": "Amphictyon Networks"
+    }
+  ]
+}

@@ -11,7 +11,7 @@
 useDefault = true
 
 # The lab's SSH host keys: generated from each device's name by demo-gen and
-# published on purpose, like the lab's logins, so the web terminal can pin
+# published on purpose, like the lab's logins, so the lab console can pin
 # them. They identify the lab's containers only. The generator module that
 # writes them holds the key file's header line, not a key.
 [allowlist]

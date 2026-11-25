@@ -97,12 +97,12 @@ them restarting. `task up` is safe to run again.
   story 1 and story 2. That is on purpose.
 - **No mail.** Everything goes to Mailpit, <http://localhost:8025>, never to a
   real address. Check `task lab:logs -- mailpit`.
-- **The web terminal cannot connect.** <http://localhost:8182> reaches only
-  the lab's routers and servers, listed under **Known remotes**; it refuses
-  any other host. It knows each device's host key, which the generator fixes,
-  so it never asks to accept one; if it reports a changed key, the device
-  runs an older image: `task lab:up` rebuilds it. Check
-  `task lab:logs -- terminal`.
+- **A lab console tab does not log in.** <http://localhost:8182> reaches only
+  the lab's routers and servers, and checks each one's fixed host key. If a
+  tab reports a changed host key, the device runs an older image:
+  `task lab:up` rebuilds it. If it waits and times out, the device is not
+  running: `task ps`. Otherwise check `task lab:logs -- console`. A tab whose
+  session ended offers to reconnect: press Enter in it.
 - **Standards check fails to start its container.** It runs `alpine:3.22` in
   the platform's sandbox, which pulls it from Docker Hub the first time; that
   needs Internet access from Docker.

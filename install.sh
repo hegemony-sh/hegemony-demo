@@ -242,7 +242,7 @@ check_ports() {
     done)
     [ -n "$ours" ] && continue
     err "port $port is in use by another program; the demo publishes 8080 (UI), 8081
-       (login), 8025 (mail), 9000 (object store), 3000 (Git) and 8182 (terminal) on 127.0.0.1. Stop that program and re-run."
+       (login), 8025 (mail), 9000 (object store), 3000 (Git) and 8182 (lab console) on 127.0.0.1. Stop that program and re-run."
   done
   ok "ports $(echo "$PORTS" | sed 's/ /, /g') are free"
 }

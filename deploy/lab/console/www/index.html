@@ -1,0 +1,46 @@
+<!doctype html>
+<!--
+SPDX-FileCopyrightText: 2026 Rexonix s.r.o.
+SPDX-FileContributor: Jakub Trávník <jakub.travnik@gmail.com>
+
+SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Lab console</title>
+    <link rel="stylesheet" href="console.css" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%230f1419'/%3E%3Cpath d='M4 5l3 3-3 3M8 11h4' stroke='%2358a6ff' stroke-width='1.6' fill='none'/%3E%3C/svg%3E"
+    />
+  </head>
+  <body>
+    <header class="bar">
+      <h1>Lab console</h1>
+      <p class="hint">Click a router or server to open a terminal on it, already logged in.</p>
+    </header>
+    <main class="layout">
+      <section class="map" aria-label="Lab map">
+        <div class="map-head">
+          <h2>Lab map</h2>
+          <button type="button" id="open-all">Open all</button>
+        </div>
+        <svg id="map" role="img" aria-label="Diagram of the lab's routers and servers"></svg>
+        <ul class="legend" id="legend"></ul>
+      </section>
+      <section class="sessions" aria-label="Terminals">
+        <nav class="tabs" id="tabs" role="tablist"></nav>
+        <div class="frames" id="frames">
+          <div class="empty" id="empty">
+            <p>No terminal open.</p>
+            <p>Pick a device on the map: a router opens in its FRR command line
+              (try <code>show ip route</code>), a server in a shell.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+    <script src="console.js"></script>
+  </body>
+</html>
