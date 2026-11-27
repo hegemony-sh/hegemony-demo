@@ -16,7 +16,7 @@ This repository holds the public demo of
 generator, the one-command installer (`install.sh`) and the Compose overlay that
 runs the demo. Vulnerabilities in the platform itself are reported the same way,
 to the same address; see the platform's
-[Security Policy](https://github.com/hegemony-sh/hegemony/blob/develop/SECURITY.md).
+[Security Policy](https://github.com/hegemony-sh/hegemony/blob/main/SECURITY.md).
 
 ## Supported versions
 

@@ -44,7 +44,7 @@ text is in [LICENSES/CC-BY-4.0.txt](LICENSES/CC-BY-4.0.txt).
 ## Third-party services
 
 The demo starts the platform's own services (see the platform's
-[THIRD-PARTY-NOTICES.md](https://github.com/hegemony-sh/hegemony/blob/develop/THIRD-PARTY-NOTICES.md))
+[THIRD-PARTY-NOTICES.md](https://github.com/hegemony-sh/hegemony/blob/main/THIRD-PARTY-NOTICES.md))
 and adds the ones below from this repository's Compose overlay and lab. This
 repository does not redistribute any of them: the Compose files name an image
 tag and your container runtime pulls it. Their licenses bind whoever runs them.
