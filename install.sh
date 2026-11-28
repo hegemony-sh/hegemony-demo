@@ -118,8 +118,8 @@ Usage: install.sh [options]
   --version       print the installer version
   --help          print this help
 
-Requires: Linux (x86-64 or arm64) or macOS with Docker Desktop; Docker with the
-Compose v2 plugin; git; curl; bash. 8 GiB of memory and 25 GiB of free disk for
+Requires: Linux or an Intel Mac with Docker Desktop (x86-64 only); Docker
+with the Compose v2 plugin; git; curl; bash. 8 GiB of memory and 25 GiB of free disk for
 Docker are recommended.
 
 Environment (all optional):
@@ -183,8 +183,8 @@ check_platform() {
     *) err "unsupported system $(uname -s): use Linux or macOS (on Windows, run it inside WSL 2)" ;;
   esac
   case "$(uname -m)" in
-    x86_64 | amd64 | aarch64 | arm64) ;;
-    *) err "unsupported CPU architecture $(uname -m): x86-64 or arm64 only" ;;
+    x86_64 | amd64) ;;
+    *) err "unsupported CPU architecture $(uname -m): the images are built for x86-64 only" ;;
   esac
   os=$(uname -s)
   [ "$os" != Darwin ] || os=macOS

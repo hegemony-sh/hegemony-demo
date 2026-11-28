@@ -52,6 +52,16 @@ users' login password is generated on your machine at install time and kept in
 drive it from; do not expose it to a network you do not control. A real
 credential committed by mistake is in scope.
 
+The demo trades isolation for realism, so run it on a machine you use alone:
+
+- The container that runs container steps (Docker in Docker) is privileged,
+  so it has full access to the host kernel.
+- The simulated routers and lab hosts run with the `NET_ADMIN`, `NET_RAW` and
+  `SYS_ADMIN` capabilities, to build their own routing.
+- Every published port binds to 127.0.0.1 only.
+
+These are known design choices, not vulnerabilities.
+
 ## Response targets
 
 | Stage | Target |

@@ -248,6 +248,17 @@ def test_preflight_needs_compose_2_24(sandbox: Sandbox, version: str) -> None:
     assert "Compose 2.24 or newer" in result.stderr
 
 
+@pytest.mark.parametrize("machine", ["arm64", "aarch64"])
+def test_preflight_refuses_arm(sandbox: Sandbox, machine: str) -> None:
+    uname = sandbox.bin / "uname"
+    uname.unlink()
+    uname.write_text(f'#!/bin/sh\n[ "$1" = -m ] && echo {machine} || echo Linux\n')
+    uname.chmod(0o755)
+    result = sandbox.run("--preflight")
+    assert result.returncode == 1
+    assert "x86-64 only" in result.stderr
+
+
 def test_preflight_refuses_too_little_memory(sandbox: Sandbox) -> None:
     result = sandbox.run("--preflight", FAKE_MEMORY=str(4 * 2**30))
     assert result.returncode == 1
