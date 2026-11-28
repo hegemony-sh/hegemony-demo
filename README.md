@@ -34,7 +34,7 @@ addresses and credentials are made up for the demo.
 
 | | |
 | --- | --- |
-| System | Linux (x86-64 or arm64), or macOS with Docker Desktop. On Windows, use WSL 2. |
+| System | Linux on x86-64, or macOS on an Intel Mac with Docker Desktop. On Windows, use WSL 2. The images are built for x86-64 only. |
 | Docker | Docker Engine or Docker Desktop with the Compose plugin 2.24 or newer |
 | Memory | 8 GiB for Docker (6 GiB at least) |
 | Disk | 25 GiB free for Docker images and data (15 GiB at least) |
@@ -42,6 +42,10 @@ addresses and credentials are made up for the demo.
 | Ports | 8080, 8081, 8025, 9000, 3000 and 8182 free on 127.0.0.1 |
 
 The installer checks all of this first and says what is missing.
+
+Run the demo on a machine you use alone. Some of its containers are privileged
+or have extra kernel capabilities; [SECURITY.md](SECURITY.md#what-is-in-scope)
+says which and why. Its ports bind to 127.0.0.1 only.
 
 ## Install
 
